@@ -83,10 +83,15 @@ class YabedaTest < SpeedshopCloudwatchTest
   end
 
   def test_first_yabeda_metric_survives_stale_reporter_pid
-    @reporter.instance_variable_set(:@pid, Process.pid - 1)
+    fork_checks = 0
 
-    Yabeda.test_group.my_counter.increment({tag: "v"}, by: 5)
-    @reporter.flush_now!
+    @reporter.stub :forked?, -> {
+      fork_checks += 1
+      fork_checks == 1
+    } do
+      Yabeda.test_group.my_counter.increment({tag: "v"}, by: 5)
+      @reporter.flush_now!
+    end
 
     metric = @test_client.find_metrics(metric_name: :my_counter).first
     refute_nil metric
