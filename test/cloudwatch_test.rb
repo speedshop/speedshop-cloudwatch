@@ -35,5 +35,4 @@ class CloudwatchTest < SpeedshopCloudwatchTest
     reporter = Speedshop::Cloudwatch.reporter
     assert_kind_of Speedshop::Cloudwatch::Reporter, reporter
   end
-
 end
