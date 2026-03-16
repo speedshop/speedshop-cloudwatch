@@ -231,6 +231,15 @@ require 'yabeda/sidekiq'
 Yabeda.register_adapter(:cloudwatch, Speedshop::Cloudwatch::Yabeda.new)
 ```
 
+If you're using collector-driven Yabeda integrations such as `yabeda-puma-plugin`, start the reporter in that process during boot so `Yabeda.collect!` has somewhere to run. For Puma, that usually means `config/puma.rb`:
+
+```ruby
+plugin :yabeda
+Speedshop::Cloudwatch.start!
+```
+
+Direct Yabeda `increment`, `set`, `measure`, and `observe` calls lazy-start the reporter on first use. Periodic Yabeda collectors only run inside that reporter thread.
+
 Behavior notes:
 
 - Group names become CloudWatch namespaces in [`namespace_for`](lib/speedshop/cloudwatch/yabeda.rb).
