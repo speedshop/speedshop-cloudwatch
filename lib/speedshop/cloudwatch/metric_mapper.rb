@@ -5,6 +5,9 @@ require_relative "metrics"
 
 module Speedshop
   module Cloudwatch
+    # Maps this gem's built-in metric families in METRICS to CloudWatch datums.
+    # The Yabeda adapter bypasses this class and builds datums directly because
+    # Yabeda metrics are dynamic and don't need to be present in METRICS.
     class MetricMapper
       include Singleton
 

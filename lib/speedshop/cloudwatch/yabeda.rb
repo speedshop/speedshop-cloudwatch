@@ -39,6 +39,8 @@ module Speedshop
         end
       end
 
+      # CloudWatch doesn't require pre-registration of metrics, but Yabeda's adapter
+      # interface expects these hooks to exist for backends that do.
       def register_counter!(_metric)
       end
 

@@ -7,19 +7,17 @@ require "yabeda"
 class YabedaTest < SpeedshopCloudwatchTest
   def setup
     super
-    verbose = $VERBOSE
-    $VERBOSE = nil
-    Yabeda.reset!
-    configure_yabeda
-    $VERBOSE = verbose
+    with_yabeda_warnings_silenced do
+      Yabeda.reset!
+      configure_yabeda
+    end
     @reporter = Speedshop::Cloudwatch.reporter
   end
 
   def teardown
-    verbose = $VERBOSE
-    $VERBOSE = nil
-    Yabeda.reset!
-    $VERBOSE = verbose
+    with_yabeda_warnings_silenced do
+      Yabeda.reset!
+    end
     super
   end
 
@@ -149,5 +147,15 @@ class YabedaTest < SpeedshopCloudwatchTest
 
   def dimension_value(metric, name)
     metric[:dimensions].find { |dimension| dimension[:name] == name }[:value]
+  end
+
+  def with_yabeda_warnings_silenced
+    verbose = $VERBOSE
+    # Yabeda emits noisy uninitialized instance variable warnings on Ruby 2.7
+    # during reset/configure. They're harmless, but they drown out test output.
+    $VERBOSE = nil
+    yield
+  ensure
+    $VERBOSE = verbose
   end
 end

@@ -214,41 +214,29 @@ This metric includes QueueName dimension and is aggregated per interval using Cl
 
 If you define application metrics with [Yabeda](https://github.com/yabeda-rb/yabeda), this gem can act as a Yabeda adapter and send those metrics through the same async `Reporter` pipeline used by the built-in integrations.
 
-This is optional and separate from the built-in Puma, Rack, Sidekiq, and ActiveJob collectors.
+This is optional. If you use it, you'll also want Yabeda metric collectors such as [yabeda-sidekiq](https://github.com/yabeda-rb/yabeda-sidekiq), [yabeda-puma-plugin](https://github.com/yabeda-rb/yabeda-puma-plugin), or [yabeda-rack-queue](https://github.com/speedshop/yabeda-rack-queue).
 
 ```ruby
 # Gemfile
 gem 'speedshop-cloudwatch'
 gem 'yabeda'
+gem 'yabeda-sidekiq'
 ```
 
 ```ruby
 # config/initializers/yabeda.rb
 require 'speedshop/cloudwatch/yabeda'
-
-Yabeda.configure do
-  group :sidekiq do
-    counter :jobs_done, comment: 'Completed jobs', tags: %i[queue], unit: :count
-  end
-end
+require 'yabeda/sidekiq'
 
 Yabeda.register_adapter(:cloudwatch, Speedshop::Cloudwatch::Yabeda.new)
-Yabeda.configure!
-```
-
-Whenever your app calls Yabeda's public API, metrics are enqueued and batched asynchronously before being sent to CloudWatch:
-
-```ruby
-Yabeda.sidekiq.jobs_done.increment({queue: 'default'}, by: 1)
 ```
 
 Behavior notes:
 
-- Group names become CloudWatch namespaces (`:sidekiq` → `"Sidekiq"`, `:active_job` → `"ActiveJob"`).
-- Yabeda tags become CloudWatch dimensions.
-- `config.dimensions` are appended to Yabeda tag dimensions.
-- Known Yabeda units are mapped to CloudWatch units; unknown units default to `"None"`.
-- Histograms and summaries are both aggregated into CloudWatch `StatisticSet`s by the reporter.
+- Group names become CloudWatch namespaces in [`namespace_for`](lib/speedshop/cloudwatch/yabeda.rb).
+- Yabeda tags become CloudWatch dimensions, and `config.dimensions` are appended in [`dimensions_for`](lib/speedshop/cloudwatch/yabeda.rb).
+- Known Yabeda units are mapped to CloudWatch units in [`UNIT_MAP`](lib/speedshop/cloudwatch/yabeda.rb); unknown units default to `"None"` in [`unit_for`](lib/speedshop/cloudwatch/yabeda.rb).
+- Direct Yabeda updates are enqueued by the adapter, and periodic Yabeda collectors are run by [`Yabeda::Collector`](lib/speedshop/cloudwatch/yabeda.rb) through the async [`Reporter`](lib/speedshop/cloudwatch/reporter.rb).
 - This adapter is opt-in and is **not** loaded by `require 'speedshop/cloudwatch/all'`.
 
 ## Rails
