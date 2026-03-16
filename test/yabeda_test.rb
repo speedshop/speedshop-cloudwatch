@@ -82,6 +82,17 @@ class YabedaTest < SpeedshopCloudwatchTest
     assert_equal 7.0, statistic_values[:maximum]
   end
 
+  def test_first_yabeda_metric_survives_stale_reporter_pid
+    @reporter.instance_variable_set(:@pid, Process.pid - 1)
+
+    Yabeda.test_group.my_counter.increment({tag: "v"}, by: 5)
+    @reporter.flush_now!
+
+    metric = @test_client.find_metrics(metric_name: :my_counter).first
+    refute_nil metric
+    assert_equal 5, metric[:value]
+  end
+
   def test_collectors_are_run_by_reporter
     flush_metrics
 

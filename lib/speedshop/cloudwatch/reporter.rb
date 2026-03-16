@@ -25,11 +25,8 @@ module Speedshop
         @mutex.synchronize do
           return if started?
 
+          reset_after_fork! if forked?
           initialize_collectors
-          if forked?
-            @collectors.clear
-            @queue.clear
-          end
 
           Speedshop::Cloudwatch.log_info("Starting metric reporter (collectors: #{@collectors.map(&:class).join(", ")})")
           @running = true
@@ -71,6 +68,8 @@ module Speedshop
         return unless config.environment_enabled?
 
         @mutex.synchronize do
+          reset_after_fork! if forked?
+
           if @queue.size >= config.queue_max_size
             @queue.shift
             @dropped_since_last_flush += 1
@@ -114,6 +113,15 @@ module Speedshop
 
       def forked?
         @pid != Process.pid
+      end
+
+      def reset_after_fork!
+        @collectors.clear
+        @queue.clear
+        @thread = nil
+        @running = false
+        @dropped_since_last_flush = 0
+        @pid = Process.pid
       end
 
       def initialize_collectors
