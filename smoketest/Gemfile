@@ -9,6 +9,10 @@ gem "redis"
 gem "sidekiq", "~> 8.0"
 gem "speedshop-cloudwatch", path: ".."
 gem "webmock"
+gem "yabeda"
+gem "yabeda-puma-plugin"
+gem "yabeda-rack-queue"
+gem "yabeda-sidekiq"
 
 group :development, :test do
   gem "debug"

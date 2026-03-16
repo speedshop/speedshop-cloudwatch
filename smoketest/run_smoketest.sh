@@ -12,6 +12,10 @@ export AWS_REGION=us-east-1
 export AWS_ACCESS_KEY_ID=fake-key
 export AWS_SECRET_ACCESS_KEY=fake-secret
 
+SMOKETEST_MODE="${SMOKETEST_MODE:-builtin}"
+SMOKETEST_TITLE="${SMOKETEST_TITLE:-Speedshop Cloudwatch Smoketest}"
+VERIFY_SCRIPT="${VERIFY_SCRIPT:-verify_metrics.rb}"
+
 cleanup() {
   echo ""
   echo "Cleaning up processes..."
@@ -31,7 +35,7 @@ rm -rf log tmp
 trap cleanup EXIT
 
 echo "==================================="
-echo "  Speedshop Cloudwatch Smoketest"
+echo "  $SMOKETEST_TITLE"
 echo "==================================="
 echo ""
 
@@ -90,10 +94,12 @@ done
 echo "✓ Generated 10 health checks and 10 job enqueues"
 echo ""
 
-echo "Step 6: Testing db rake task (should not report metrics)..."
-bundle exec rake db:test_metric_report
-echo "✓ Rake task completed"
-echo ""
+if [ "$SMOKETEST_MODE" = "builtin" ]; then
+  echo "Step 6: Testing db rake task (should not report metrics)..."
+  bundle exec rake db:test_metric_report
+  echo "✓ Rake task completed"
+  echo ""
+fi
 
 for i in {1..6}; do
   sleep 10
@@ -101,7 +107,7 @@ for i in {1..6}; do
 done
 
 echo "Step 7: Verifying captured metrics..."
-bundle exec ruby verify_metrics.rb
+bundle exec ruby "$VERIFY_SCRIPT"
 
 if [ $? -eq 0 ]; then
     echo ""

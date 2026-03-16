@@ -33,6 +33,12 @@ module Speedshop
         count: "Count"
       }.freeze
 
+      def initialize
+        Speedshop::Cloudwatch.configure do |config|
+          config.collectors << :yabeda unless config.collectors.include?(:yabeda)
+        end
+      end
+
       def register_counter!(_metric)
       end
 
@@ -59,6 +65,12 @@ module Speedshop
 
       def perform_summary_observe!(summary, tags, value)
         enqueue_metric(summary, tags, value)
+      end
+
+      class Collector
+        def collect
+          ::Yabeda.collect!
+        end
       end
 
       private

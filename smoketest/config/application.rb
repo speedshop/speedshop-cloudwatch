@@ -13,7 +13,7 @@ module SmoketestApp
     config.load_defaults 8.0
     config.api_only = true
     config.eager_load = false
-    config.active_job.queue_adapter = :inline
+    config.active_job.queue_adapter = ENV["SMOKETEST_MODE"] == "yabeda" ? :sidekiq : :inline
     config.logger = Logger.new($stdout)
     config.log_level = :info
   end

@@ -56,7 +56,7 @@ class YabedaTest < SpeedshopCloudwatchTest
 
     flush_metrics
 
-    assert_equal ["Sidekiq"], @test_client.calls.map { |call| call[:namespace] }.uniq
+    assert @test_client.metric_sent?(:jobs_done, namespace: "Sidekiq")
   end
 
   def test_unknown_units_default_to_none
@@ -82,6 +82,14 @@ class YabedaTest < SpeedshopCloudwatchTest
     assert_equal 12.0, statistic_values[:sum]
     assert_equal 5.0, statistic_values[:minimum]
     assert_equal 7.0, statistic_values[:maximum]
+  end
+
+  def test_collectors_are_run_by_reporter
+    flush_metrics
+
+    metric = @test_client.find_metrics(metric_name: :workers, namespace: "CollectorGroup").first
+    refute_nil metric
+    assert_equal 2, metric[:value]
   end
 
   def test_metrics_are_dropped_in_disabled_environments
@@ -113,6 +121,14 @@ class YabedaTest < SpeedshopCloudwatchTest
       group :sidekiq do
         counter :jobs_done, comment: "Jobs done", tags: %i[tag], unit: :widgets
       end
+
+      group :collector_group do
+        gauge :workers, comment: "Workers"
+
+        collect do
+          collector_group.workers.set({}, 2)
+        end
+      end
     end
 
     Yabeda.configure!
@@ -123,13 +139,12 @@ class YabedaTest < SpeedshopCloudwatchTest
     @reporter.flush_now!
   end
 
-  def assert_metric(metric_name:, value:, unit:)
-    metric = @test_client.find_metrics(metric_name: metric_name).first
+  def assert_metric(metric_name:, value:, unit:, namespace: "TestGroup")
+    metric = @test_client.find_metrics(metric_name: metric_name, namespace: namespace).first
     refute_nil metric
     assert_equal value, metric[:value]
     assert_equal unit, metric[:unit]
     assert_equal "v", dimension_value(metric, "tag")
-    assert_equal ["TestGroup"], @test_client.calls.map { |call| call[:namespace] }.uniq if metric_name != :jobs_done
   end
 
   def dimension_value(metric, name)

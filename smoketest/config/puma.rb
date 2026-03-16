@@ -11,7 +11,13 @@ pidfile ENV.fetch("PIDFILE", "tmp/pids/server.pid")
 workers ENV.fetch("WEB_CONCURRENCY", 2)
 preload_app!
 
-Speedshop::Cloudwatch.configure do |config|
-  config.collectors << :puma
+if ENV["SMOKETEST_MODE"] == "yabeda"
+  activate_control_app
+  plugin :yabeda
+else
+  Speedshop::Cloudwatch.configure do |config|
+    config.collectors << :puma
+  end
 end
+
 Speedshop::Cloudwatch.start!
