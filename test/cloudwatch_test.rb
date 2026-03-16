@@ -35,4 +35,9 @@ class CloudwatchTest < SpeedshopCloudwatchTest
     reporter = Speedshop::Cloudwatch.reporter
     assert_kind_of Speedshop::Cloudwatch::Reporter, reporter
   end
+
+  def test_metric_mapper_returns_metric_mapper_instance
+    metric_mapper = Speedshop::Cloudwatch.metric_mapper
+    assert_kind_of Speedshop::Cloudwatch::MetricMapper, metric_mapper
+  end
 end

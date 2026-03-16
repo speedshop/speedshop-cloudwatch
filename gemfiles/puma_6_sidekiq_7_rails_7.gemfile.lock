@@ -88,6 +88,8 @@ GEM
       tzinfo (~> 2.0)
     addressable (2.8.7)
       public_suffix (>= 2.0.2, < 7.0)
+    anyway_config (2.8.0)
+      ruby-next-core (~> 1.0)
     ast (2.4.3)
     aws-eventstream (1.4.0)
     aws-partitions (1.1179.0)
@@ -117,6 +119,7 @@ GEM
     crass (1.0.6)
     date (3.5.0)
     drb (2.2.3)
+    dry-initializer (3.1.1)
     erb (4.0.4)
       cgi (>= 0.3.3)
     erubi (1.13.1)
@@ -245,6 +248,7 @@ GEM
     rubocop-performance (1.21.1)
       rubocop (>= 1.48.1, < 2.0)
       rubocop-ast (>= 1.31.1, < 2.0)
+    ruby-next-core (1.2.0)
     ruby-progressbar (1.13.0)
     securerandom (0.3.2)
     sidekiq (7.3.9)
@@ -280,6 +284,10 @@ GEM
       base64
       websocket-extensions (>= 0.1.0)
     websocket-extensions (0.1.5)
+    yabeda (0.16.0)
+      anyway_config (>= 1.0, < 3)
+      concurrent-ruby
+      dry-initializer
     zeitwerk (2.6.18)
 
 PLATFORMS
@@ -297,6 +305,7 @@ DEPENDENCIES
   speedshop-cloudwatch!
   standard (>= 1.35.1)
   webmock
+  yabeda
 
 BUNDLED WITH
    2.4.12

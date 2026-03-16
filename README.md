@@ -49,6 +49,12 @@ config.metrics[:sidekiq] = [
 gem 'speedshop-cloudwatch'
 ```
 
+If you want to export metrics defined with Yabeda's DSL through this gem, also add:
+
+```ruby
+gem 'yabeda'
+```
+
 See each integration below for instructions on how to setup and configure that integration.
 
 ## Configuration
@@ -203,6 +209,47 @@ QueueLatency - Time job spent waiting in queue before execution (Seconds)
 ```
 
 This metric includes QueueName dimension and is aggregated per interval using CloudWatch StatisticSets.
+
+## Yabeda
+
+If you define application metrics with [Yabeda](https://github.com/yabeda-rb/yabeda), this gem can act as a Yabeda adapter and send those metrics through the same async `Reporter` pipeline used by the built-in integrations.
+
+This is optional and separate from the built-in Puma, Rack, Sidekiq, and ActiveJob collectors.
+
+```ruby
+# Gemfile
+gem 'speedshop-cloudwatch'
+gem 'yabeda'
+```
+
+```ruby
+# config/initializers/yabeda.rb
+require 'speedshop/cloudwatch/yabeda'
+
+Yabeda.configure do
+  group :sidekiq do
+    counter :jobs_done, comment: 'Completed jobs', tags: %i[queue], unit: :count
+  end
+end
+
+Yabeda.register_adapter(:cloudwatch, Speedshop::Cloudwatch::Yabeda.new)
+Yabeda.configure!
+```
+
+Whenever your app calls Yabeda's public API, metrics are enqueued and batched asynchronously before being sent to CloudWatch:
+
+```ruby
+Yabeda.sidekiq.jobs_done.increment({queue: 'default'}, by: 1)
+```
+
+Behavior notes:
+
+- Group names become CloudWatch namespaces (`:sidekiq` → `"Sidekiq"`, `:active_job` → `"ActiveJob"`).
+- Yabeda tags become CloudWatch dimensions.
+- `config.dimensions` are appended to Yabeda tag dimensions.
+- Known Yabeda units are mapped to CloudWatch units; unknown units default to `"None"`.
+- Histograms and summaries are both aggregated into CloudWatch `StatisticSet`s by the reporter.
+- This adapter is opt-in and is **not** loaded by `require 'speedshop/cloudwatch/all'`.
 
 ## Rails
 

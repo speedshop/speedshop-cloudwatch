@@ -8,13 +8,13 @@ module Speedshop
 
         if stats[:worker_status]
           %i[workers booted_workers old_workers].each do |m|
-            Reporter.instance.report(metric: metric_name_for(m), value: stats[m] || 0)
+            MetricMapper.instance.report(metric: metric_name_for(m), value: stats[m] || 0)
           end
           report_aggregate_worker_stats(stats)
         else
           # Single mode - report worker stats without dimensions
           %i[running backlog pool_capacity max_threads].each do |m|
-            Reporter.instance.report(metric: metric_name_for(m), value: stats[m] || 0)
+            MetricMapper.instance.report(metric: metric_name_for(m), value: stats[m] || 0)
           end
         end
       rescue => e
@@ -36,7 +36,7 @@ module Speedshop
           minimum = values.min.to_f
           maximum = values.max.to_f
 
-          Reporter.instance.report(
+          MetricMapper.instance.report(
             metric: metric_name_for(m),
             statistic_values: {
               sample_count: sample_count,

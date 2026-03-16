@@ -68,8 +68,8 @@ module Speedshop
 
       private
 
-      def reporter
-        Speedshop::Cloudwatch.reporter
+      def metric_mapper
+        Speedshop::Cloudwatch.metric_mapper
       end
 
       def report_stats(stats)
@@ -78,21 +78,21 @@ module Speedshop
           ScheduledJobs: stats.scheduled_size, RetryJobs: stats.retry_size, DeadJobs: stats.dead_size,
           Workers: stats.workers_size, Processes: stats.processes_size,
           DefaultQueueLatency: stats.default_queue_latency
-        }.each { |m, v| reporter.report(metric: m, value: v, integration: :sidekiq) }
+        }.each { |m, v| metric_mapper.report(metric: m, value: v, integration: :sidekiq) }
       end
 
       def report_utilization(processes)
         capacity = processes.sum { |p| p["concurrency"] }
-        reporter.report(metric: :Capacity, value: capacity)
+        metric_mapper.report(metric: :Capacity, value: capacity)
 
         utilization = avg_utilization(processes) * 100.0
-        reporter.report(metric: :Utilization, value: utilization) unless utilization.nan?
+        metric_mapper.report(metric: :Utilization, value: utilization) unless utilization.nan?
       end
 
       def report_queue_metrics
         queues_to_monitor.each do |q|
-          reporter.report(metric: :QueueLatency, value: q.latency, dimensions: {QueueName: q.name})
-          reporter.report(metric: :QueueSize, value: q.size, dimensions: {QueueName: q.name})
+          metric_mapper.report(metric: :QueueLatency, value: q.latency, dimensions: {QueueName: q.name})
+          metric_mapper.report(metric: :QueueSize, value: q.size, dimensions: {QueueName: q.name})
         end
       end
 
