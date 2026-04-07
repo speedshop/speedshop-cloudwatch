@@ -4,7 +4,7 @@ require_relative "../lib/speedshop/cloudwatch/config"
 require_relative "../lib/speedshop/cloudwatch/metrics"
 
 class VerifySupport
-  attr_reader :captured_data, :captured_metrics, :metric_counts
+  attr_reader :captured_data, :captured_metrics, :metric_counts, :datums
 
   def self.built_in_metrics_by_namespace(config: Speedshop::Cloudwatch::Config.instance)
     Speedshop::Cloudwatch::METRICS.transform_keys { |integration| config.namespaces.fetch(integration) }
@@ -20,6 +20,7 @@ class VerifySupport
 
     @captured_metrics = Hash.new { |hash, key| hash[key] = [] }
     @metric_counts = Hash.new { |hash, key| hash[key] = Hash.new(0) }
+    @datums = []
 
     parse_captured_data
   end
@@ -91,6 +92,133 @@ class VerifySupport
     end
   end
 
+  def print_unique_metric_counts(expected_counts)
+    puts "Checking unique metric coverage:"
+    puts
+
+    expected_counts.each do |namespace, minimum_count|
+      actual_count = captured_metrics.fetch(namespace, []).length
+      if actual_count >= minimum_count
+        puts "  ✓ #{namespace}: #{actual_count} unique metrics (expected >= #{minimum_count})"
+      else
+        puts "  ❌ #{namespace}: #{actual_count} unique metrics (expected >= #{minimum_count})"
+        yield "#{namespace}: got #{actual_count}, expected >= #{minimum_count}" if block_given?
+      end
+    end
+
+    puts
+  end
+
+  def print_metric_units(expected_units)
+    puts "Checking metric units:"
+    puts
+
+    expected_units.each do |namespace, metrics|
+      puts "#{namespace}:"
+
+      metrics.each do |metric, expected_unit|
+        actual_units = metric_units(namespace: namespace, metric_name: metric)
+        expected = Array(expected_unit).sort
+        if actual_units == expected
+          puts "  ✓ #{metric}: #{format_values(actual_units)}"
+        else
+          puts "  ❌ #{metric}: #{format_values(actual_units)} (expected #{format_values(expected)})"
+          yield "#{namespace}/#{metric}: got #{format_values(actual_units)}, expected #{format_values(expected)}" if block_given?
+        end
+      end
+
+      puts
+    end
+  end
+
+  def print_metric_dimensions(expected_dimensions)
+    puts "Checking metric dimensions:"
+    puts
+
+    expected_dimensions.each do |namespace, metrics|
+      puts "#{namespace}:"
+
+      metrics.each do |metric, expected_dimension_names|
+        actual_dimension_names = metric_dimension_names(namespace: namespace, metric_name: metric)
+        expected = Array(expected_dimension_names).map(&:to_s).sort
+        if actual_dimension_names == expected
+          puts "  ✓ #{metric}: #{format_values(actual_dimension_names)}"
+        else
+          puts "  ❌ #{metric}: #{format_values(actual_dimension_names)} (expected #{format_values(expected)})"
+          yield "#{namespace}/#{metric}: got #{format_values(actual_dimension_names)}, expected #{format_values(expected)}" if block_given?
+        end
+      end
+
+      puts
+    end
+  end
+
+  def print_metric_sample_totals(expected_totals)
+    puts "Checking metric sample totals:"
+    puts
+
+    expected_totals.each do |namespace, metrics|
+      puts "#{namespace}:"
+
+      metrics.each do |metric, minimum_total|
+        actual_total = metric_sample_total(namespace: namespace, metric_name: metric)
+        if actual_total >= minimum_total
+          puts "  ✓ #{metric}: #{format_number(actual_total)} samples (expected >= #{minimum_total})"
+        else
+          puts "  ❌ #{metric}: #{format_number(actual_total)} samples (expected >= #{minimum_total})"
+          yield "#{namespace}/#{metric}: got #{format_number(actual_total)} samples, expected >= #{minimum_total}" if block_given?
+        end
+      end
+
+      puts
+    end
+  end
+
+  def print_metric_value_sums(expected_sums)
+    puts "Checking metric value sums:"
+    puts
+
+    expected_sums.each do |namespace, metrics|
+      puts "#{namespace}:"
+
+      metrics.each do |metric, minimum_sum|
+        actual_sum = metric_value_sum(namespace: namespace, metric_name: metric)
+        if actual_sum >= minimum_sum
+          puts "  ✓ #{metric}: #{format_number(actual_sum)} total value (expected >= #{minimum_sum})"
+        else
+          puts "  ❌ #{metric}: #{format_number(actual_sum)} total value (expected >= #{minimum_sum})"
+          yield "#{namespace}/#{metric}: got #{format_number(actual_sum)} total value, expected >= #{minimum_sum}" if block_given?
+        end
+      end
+
+      puts
+    end
+  end
+
+  def metric_units(namespace:, metric_name:)
+    datums_for(namespace: namespace, metric_name: metric_name).map { |datum| datum[:unit] }.compact.uniq.sort
+  end
+
+  def metric_dimension_names(namespace:, metric_name:)
+    datums_for(namespace: namespace, metric_name: metric_name).flat_map { |datum| datum[:dimensions].keys }.uniq.sort
+  end
+
+  def metric_dimension_values(namespace:, metric_name:, dimension_name:)
+    datums_for(namespace: namespace, metric_name: metric_name).map { |datum| datum[:dimensions][dimension_name] }.compact.uniq.sort
+  end
+
+  def metric_sample_total(namespace:, metric_name:)
+    datums_for(namespace: namespace, metric_name: metric_name).inject(0.0) do |sum, datum|
+      sum + datum_sample_count(datum)
+    end
+  end
+
+  def metric_value_sum(namespace:, metric_name:)
+    datums_for(namespace: namespace, metric_name: metric_name).inject(0.0) do |sum, datum|
+      sum + datum_value_sum(datum)
+    end
+  end
+
   def print_summary(expected_metrics)
     puts "Summary:"
     puts "  Total API calls: #{captured_data.length}"
@@ -124,12 +252,87 @@ class VerifySupport
       namespace = params["Namespace"]&.first
       next unless namespace
 
-      params.keys.grep(/MetricData\.member\.\d+\.MetricName/).each do |key|
-        metric_name = params[key].first
-        namespace_key = namespace.split("/").last
+      namespace_key = namespace.split("/").last
+      datum_indexes(params).each do |index|
+        metric_name = params["MetricData.member.#{index}.MetricName"]&.first
+        next unless metric_name
+
+        datums << {
+          namespace: namespace_key,
+          metric_name: metric_name,
+          unit: params["MetricData.member.#{index}.Unit"]&.first,
+          dimensions: parse_dimensions(params, index),
+          value: parse_float(params["MetricData.member.#{index}.Value"]&.first),
+          statistic_values: parse_statistic_values(params, index)
+        }
+
         captured_metrics[namespace_key] << metric_name unless captured_metrics[namespace_key].include?(metric_name)
         metric_counts[namespace_key][metric_name] += 1
       end
     end
+  end
+
+  def datum_indexes(params)
+    params.keys.grep(/\AMetricData\.member\.\d+\.MetricName\z/).map do |key|
+      key[/\AMetricData\.member\.(\d+)\.MetricName\z/, 1].to_i
+    end.sort
+  end
+
+  def parse_dimensions(params, metric_index)
+    params.keys.grep(/\AMetricData\.member\.#{metric_index}\.Dimensions\.member\.\d+\.Name\z/).each_with_object({}) do |key, dimensions|
+      dimension_index = key[/\.member\.(\d+)\.Name\z/, 1]
+      name = params["MetricData.member.#{metric_index}.Dimensions.member.#{dimension_index}.Name"]&.first
+      value = params["MetricData.member.#{metric_index}.Dimensions.member.#{dimension_index}.Value"]&.first
+      dimensions[name] = value if name
+    end
+  end
+
+  def parse_statistic_values(params, metric_index)
+    prefix = "MetricData.member.#{metric_index}.StatisticValues"
+    sample_count = parse_float(params["#{prefix}.SampleCount"]&.first)
+    sum = parse_float(params["#{prefix}.Sum"]&.first)
+    minimum = parse_float(params["#{prefix}.Minimum"]&.first)
+    maximum = parse_float(params["#{prefix}.Maximum"]&.first)
+
+    return unless [sample_count, sum, minimum, maximum].any?
+
+    {
+      sample_count: sample_count || 0.0,
+      sum: sum || 0.0,
+      minimum: minimum || 0.0,
+      maximum: maximum || 0.0
+    }
+  end
+
+  def datums_for(namespace:, metric_name:)
+    datums.select { |datum| datum[:namespace] == namespace && datum[:metric_name] == metric_name }
+  end
+
+  def datum_sample_count(datum)
+    statistic_values = datum[:statistic_values]
+    return statistic_values[:sample_count] if statistic_values
+
+    1.0
+  end
+
+  def datum_value_sum(datum)
+    statistic_values = datum[:statistic_values]
+    return statistic_values[:sum] if statistic_values
+
+    datum[:value] || 0.0
+  end
+
+  def parse_float(value)
+    value && value.to_f
+  end
+
+  def format_number(number)
+    return number.to_i.to_s if number.finite? && number == number.to_i
+
+    format("%.3f", number)
+  end
+
+  def format_values(values)
+    values.empty? ? "(none)" : values.join(", ")
   end
 end
