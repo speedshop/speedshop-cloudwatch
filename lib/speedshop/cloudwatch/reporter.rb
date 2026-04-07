@@ -218,7 +218,7 @@ module Speedshop
       def group_metrics(ns_metrics)
         groups = {}
         ns_metrics.each do |m|
-          key = [m[:metric_name], m[:unit], normalized_dimensions_key(m[:dimensions])]
+          key = [m[:metric_name], m[:unit], normalized_dimensions_key(m[:dimensions]), m[:aggregation_strategy]]
           (groups[key] ||= []) << m
         end
         groups.values
@@ -226,6 +226,10 @@ module Speedshop
 
       def aggregate_group(items)
         return items.first if items.size == 1
+
+        strategy = items.first[:aggregation_strategy]
+        return aggregate_most_recent_group(items) if strategy == :most_recent
+        return aggregate_max_group(items) if strategy == :max
 
         sample_count, sum, minimum, maximum = aggregate_values(items)
         {
@@ -261,6 +265,21 @@ module Speedshop
         end
 
         [sample_count, sum, minimum, maximum]
+      end
+
+      def aggregate_most_recent_group(items)
+        items.last
+      end
+
+      def aggregate_max_group(items)
+        items.max_by { |item| item_value_for_max(item) }
+      end
+
+      def item_value_for_max(item)
+        return item[:statistic_values][:maximum].to_f if item[:statistic_values]
+        return item[:value].to_f if item.key?(:value)
+
+        -Float::INFINITY
       end
 
       def build_statistic_values(sample_count, sum, minimum, maximum)

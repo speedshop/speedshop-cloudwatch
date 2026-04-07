@@ -82,6 +82,38 @@ class YabedaTest < SpeedshopCloudwatchTest
     assert_equal 7.0, statistic_values[:maximum]
   end
 
+  def test_gauge_with_most_recent_aggregation_keeps_last_value
+    Yabeda.test_group.most_recent_gauge.set({tag: "v"}, 3)
+    Yabeda.test_group.most_recent_gauge.set({tag: "v"}, 10)
+    Yabeda.test_group.most_recent_gauge.set({tag: "v"}, 4)
+
+    flush_metrics
+
+    metrics = @test_client.find_metrics(metric_name: :most_recent_gauge)
+    assert_equal 1, metrics.size
+
+    metric = metrics.first
+    refute metric[:statistic_values]
+    assert_equal 4, metric[:value]
+    assert_equal "v", dimension_value(metric, "tag")
+  end
+
+  def test_gauge_with_max_aggregation_keeps_maximum_value
+    Yabeda.test_group.max_gauge.set({tag: "v"}, 3)
+    Yabeda.test_group.max_gauge.set({tag: "v"}, 10)
+    Yabeda.test_group.max_gauge.set({tag: "v"}, 4)
+
+    flush_metrics
+
+    metrics = @test_client.find_metrics(metric_name: :max_gauge)
+    assert_equal 1, metrics.size
+
+    metric = metrics.first
+    refute metric[:statistic_values]
+    assert_equal 10, metric[:value]
+    assert_equal "v", dimension_value(metric, "tag")
+  end
+
   def test_first_yabeda_metric_survives_stale_reporter_pid
     fork_checks = 0
 
@@ -128,6 +160,8 @@ class YabedaTest < SpeedshopCloudwatchTest
       group :test_group do
         counter :my_counter, comment: "Counter", tags: %i[tag], unit: :count
         gauge :my_gauge, comment: "Gauge", tags: %i[tag], unit: :widgets
+        gauge :most_recent_gauge, comment: "Most recent gauge", tags: %i[tag], aggregation: :most_recent
+        gauge :max_gauge, comment: "Max gauge", tags: %i[tag], aggregation: :max
         histogram :my_histogram, comment: "Histogram", tags: %i[tag], unit: :seconds, buckets: [0.1, 1, 10]
         summary :my_summary, comment: "Summary", tags: %i[tag], unit: :bytes
       end

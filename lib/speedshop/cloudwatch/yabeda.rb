@@ -84,7 +84,8 @@ module Speedshop
           unit: unit_for(metric),
           dimensions: dimensions_for(tags),
           value: value,
-          timestamp: Time.now
+          timestamp: Time.now,
+          aggregation_strategy: aggregation_strategy_for(metric)
         )
       end
 
@@ -99,6 +100,13 @@ module Speedshop
       def dimensions_for(tags)
         tag_dimensions = tags.to_h.map { |name, value| {name: name.to_s, value: value.to_s} }
         tag_dimensions + Config.instance.dimensions.map { |name, value| {name: name.to_s, value: value.to_s} }
+      end
+
+      def aggregation_strategy_for(metric)
+        return unless metric.is_a?(::Yabeda::Gauge)
+
+        strategy = metric.aggregation&.to_sym
+        strategy if %i[most_recent max].include?(strategy)
       end
     end
   end
