@@ -5,7 +5,7 @@ require "tmpdir"
 require "test_helper"
 require_relative "../smoketest/verify_support"
 
-class VerifySupportTest < Minitest::Test
+class VerifySupportTest < SpeedshopCloudwatchTest
   def test_built_in_metrics_by_namespace_covers_all_builtin_metrics
     built_in_metrics = VerifySupport.built_in_metrics_by_namespace
 
