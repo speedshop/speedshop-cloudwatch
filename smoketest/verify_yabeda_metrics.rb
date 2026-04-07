@@ -5,12 +5,7 @@ expected_metrics = {
   "RackQueue" => %w[duration],
   "Sidekiq" => %w[jobs_enqueued_total jobs_executed_total jobs_success_total job_runtime jobs_waiting_count queue_latency]
 }
-forbidden_metrics = {
-  "Puma" => %w[Workers BootedWorkers],
-  "Rack" => %w[RequestQueueTime],
-  "ActiveJob" => %w[QueueLatency],
-  "Sidekiq" => %w[EnqueuedJobs ProcessedJobs]
-}
+forbidden_metrics = VerifySupport.built_in_metrics_by_namespace
 expected_metric_counts = {
   "Puma" => {"workers" => 1},
   "RackQueue" => {"duration" => 1},

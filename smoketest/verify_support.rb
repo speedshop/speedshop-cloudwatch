@@ -1,8 +1,15 @@
 require "cgi"
 require "csv"
+require_relative "../lib/speedshop/cloudwatch/config"
+require_relative "../lib/speedshop/cloudwatch/metrics"
 
 class VerifySupport
   attr_reader :captured_data, :captured_metrics, :metric_counts
+
+  def self.built_in_metrics_by_namespace(config: Speedshop::Cloudwatch::Config.instance)
+    Speedshop::Cloudwatch::METRICS.transform_keys { |integration| config.namespaces.fetch(integration) }
+      .transform_values { |metrics| metrics.map { |metric| metric.name.to_s } }
+  end
 
   def initialize(metrics_file:)
     @metrics_file = metrics_file
