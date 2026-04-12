@@ -177,13 +177,4 @@ module SmoketestMetricContract
       }
     }
   end
-
-  def parity_ignored_value_sums
-    [
-      ["Rack", "RequestQueueTime"],
-      ["ActiveJob", "QueueLatency"],
-      ["Sidekiq", "DefaultQueueLatency"],
-      ["Sidekiq", "QueueLatency"]
-    ]
-  end
 end

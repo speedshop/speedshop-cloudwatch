@@ -46,10 +46,10 @@ module Smoketest
           gauge :max_threads, comment: "Max threads per Puma worker", unit: :count
 
           collect do
-            next unless parity_process?("puma")
+            next unless Smoketest::YabedaParity.parity_process?("puma")
 
             Speedshop::Cloudwatch::Observations::Puma.from_stats(::Puma.stats_hash).each do |observation|
-              report_puma_observation(observation)
+              Smoketest::YabedaParity.report_puma_observation(observation)
             end
           end
         end
@@ -70,10 +70,10 @@ module Smoketest
           gauge :queue_size, comment: "Queue size by queue", tags: %i[QueueName], unit: :count, aggregation: :most_recent
 
           collect do
-            next unless parity_process?("sidekiq")
+            next unless Smoketest::YabedaParity.parity_process?("sidekiq")
 
             Speedshop::Cloudwatch::Observations::Sidekiq.collect.each do |observation|
-              report_sidekiq_observation(observation)
+              Smoketest::YabedaParity.report_sidekiq_observation(observation)
             end
           end
         end

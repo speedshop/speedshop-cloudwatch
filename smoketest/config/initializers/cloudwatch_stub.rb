@@ -12,8 +12,10 @@ METRICS_FILE = Rails.root.join("tmp", CAPTURED_METRICS_FILE)
 
 FileUtils.mkdir_p(METRICS_FILE.dirname)
 
-CSV.open(METRICS_FILE, "w") do |csv|
-  csv << ["timestamp", "body", "headers"]
+unless File.exist?(METRICS_FILE)
+  CSV.open(METRICS_FILE, "w") do |csv|
+    csv << ["timestamp", "body", "headers"]
+  end
 end
 
 WebMock.stub_request(:post, /monitoring\..*\.amazonaws\.com/)
