@@ -96,7 +96,7 @@ echo ""
 
 if [ "$SMOKETEST_MODE" = "builtin" ]; then
   echo "Step 6: Testing db rake task (should not report metrics)..."
-  bundle exec rake db:test_metric_report
+  CAPTURED_METRICS_FILE=rake_captured_metrics.csv bundle exec rake db:test_metric_report
   echo "✓ Rake task completed"
   echo ""
 fi
