@@ -117,6 +117,7 @@ GEM
       bigdecimal
       rexml
     crass (1.0.6)
+    csv (3.3.5)
     date (3.5.0)
     drb (2.2.3)
     dry-initializer (3.1.1)
@@ -315,6 +316,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  csv
   flay
   flog
   irb

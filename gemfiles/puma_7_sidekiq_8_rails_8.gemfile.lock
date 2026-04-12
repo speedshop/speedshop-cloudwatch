@@ -110,6 +110,7 @@ GEM
       bigdecimal
       rexml
     crass (1.0.6)
+    csv (3.3.5)
     date (3.5.0)
     drb (2.2.3)
     dry-initializer (3.1.1)
@@ -308,6 +309,7 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
+  csv
   irb
   minitest
   puma (~> 7.0)
