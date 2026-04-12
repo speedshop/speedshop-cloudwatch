@@ -35,6 +35,31 @@ class VerifySupportTest < SpeedshopCloudwatchTest
       assert_equal 2.0, verifier.metric_sample_total(namespace: "Sidekiq", metric_name: "job_runtime")
       assert_in_delta 0.25, verifier.metric_value_sum(namespace: "Sidekiq", metric_name: "job_runtime"), 0.001
       assert_equal 1.0, verifier.metric_sample_total(namespace: "RackQueue", metric_name: "duration")
+      assert_equal ["value"], verifier.metric_value_kinds(namespace: "Sidekiq", metric_name: "jobs_enqueued_total")
+      assert_equal ["statistic_values"], verifier.metric_value_kinds(namespace: "Sidekiq", metric_name: "job_runtime")
+    end
+  end
+
+  def test_normalized_summary_groups_metrics_by_identity_and_kind
+    with_metrics_file do |metrics_file|
+      verifier = VerifySupport.new(metrics_file: metrics_file)
+      summary = verifier.normalized_summary
+
+      sidekiq_counter = summary.find do |entry|
+        entry[:namespace] == "Sidekiq" && entry[:metric_name] == "jobs_enqueued_total"
+      end
+      sidekiq_runtime = summary.find do |entry|
+        entry[:namespace] == "Sidekiq" && entry[:metric_name] == "job_runtime"
+      end
+
+      assert_equal "value", sidekiq_counter[:datum_kind]
+      assert_equal 1, sidekiq_counter[:datum_count]
+      assert_equal 1.0, sidekiq_counter[:sample_total]
+      assert_equal [["queue", "default"], ["worker", "TestSidekiqJob"]], sidekiq_counter[:dimensions]
+
+      assert_equal "statistic_values", sidekiq_runtime[:datum_kind]
+      assert_equal 2.0, sidekiq_runtime[:sample_total]
+      assert_in_delta 0.25, sidekiq_runtime[:value_sum], 0.001
     end
   end
 

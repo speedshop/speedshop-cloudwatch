@@ -16,8 +16,12 @@ jobs:
         include:
           - name: Full Integration Test
             script: ./run_smoketest.sh
-          - name: Yabeda Integration Test
+          - name: Yabeda Parity Integration Test
             script: ./run_yabeda_smoketest.sh
+          - name: Yabeda Plugin Integration Test
+            script: ./run_yabeda_plugin_smoketest.sh
+          - name: Yabeda Parity Diff Integration Test
+            script: ./run_yabeda_parity_diff_smoketest.sh
 
     services:
       redis:

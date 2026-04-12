@@ -24,18 +24,20 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-require "sidekiq/api" if defined?(::Sidekiq)
+require "speedshop/cloudwatch/sidekiq_observations"
 
 module Speedshop
   module Cloudwatch
     class Sidekiq
       def collect
-        stats = ::Sidekiq::Stats.new
-        processes = ::Sidekiq::ProcessSet.new.to_a
-
-        report_stats(stats)
-        report_utilization(processes)
-        report_queue_metrics
+        SidekiqObservations.collect.each do |observation|
+          metric_mapper.report(
+            metric: observation[:metric],
+            value: observation[:value],
+            dimensions: observation[:dimensions] || {},
+            integration: :sidekiq
+          )
+        end
       rescue => e
         Speedshop::Cloudwatch.log_error("Failed to collect Sidekiq metrics: #{e.message}", e)
       end
@@ -70,46 +72,6 @@ module Speedshop
 
       def metric_mapper
         Speedshop::Cloudwatch.metric_mapper
-      end
-
-      def report_stats(stats)
-        {
-          EnqueuedJobs: stats.enqueued, ProcessedJobs: stats.processed, FailedJobs: stats.failed,
-          ScheduledJobs: stats.scheduled_size, RetryJobs: stats.retry_size, DeadJobs: stats.dead_size,
-          Workers: stats.workers_size, Processes: stats.processes_size,
-          DefaultQueueLatency: stats.default_queue_latency
-        }.each { |m, v| metric_mapper.report(metric: m, value: v, integration: :sidekiq) }
-      end
-
-      def report_utilization(processes)
-        capacity = processes.sum { |p| p["concurrency"] }
-        metric_mapper.report(metric: :Capacity, value: capacity)
-
-        utilization = avg_utilization(processes) * 100.0
-        metric_mapper.report(metric: :Utilization, value: utilization) unless utilization.nan?
-      end
-
-      def report_queue_metrics
-        queues_to_monitor.each do |q|
-          metric_mapper.report(metric: :QueueLatency, value: q.latency, dimensions: {QueueName: q.name})
-          metric_mapper.report(metric: :QueueSize, value: q.size, dimensions: {QueueName: q.name})
-        end
-      end
-
-      def queues_to_monitor
-        all_queues = ::Sidekiq::Queue.all
-        configured = Speedshop::Cloudwatch.config.sidekiq_queues
-
-        if configured.nil? || configured.empty?
-          all_queues
-        else
-          all_queues.select { |q| configured.include?(q.name) }
-        end
-      end
-
-      def avg_utilization(processes)
-        utils = processes.map { |p| p["busy"] / p["concurrency"].to_f }.reject(&:nan?)
-        utils.sum / utils.size.to_f
       end
     end
   end

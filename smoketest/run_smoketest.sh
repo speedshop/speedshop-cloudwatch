@@ -60,7 +60,7 @@ echo ""
 
 echo "Step 3: Starting Rails server (Puma)..."
 mkdir -p log tmp/pids
-bundle exec puma -C config/puma.rb -e development > log/puma.log 2>&1 &
+SMOKETEST_PROCESS=puma bundle exec puma -C config/puma.rb -e development > log/puma.log 2>&1 &
 PUMA_PID=$!
 echo $PUMA_PID > tmp/pids/server.pid
 sleep 3
@@ -73,7 +73,7 @@ echo "✓ Rails server started with 2 workers"
 echo ""
 
 echo "Step 4: Starting Sidekiq..."
-bundle exec sidekiq > log/sidekiq.log 2>&1 &
+SMOKETEST_PROCESS=sidekiq bundle exec sidekiq > log/sidekiq.log 2>&1 &
 SIDEKIQ_PID=$!
 echo $SIDEKIQ_PID > tmp/pids/sidekiq.pid
 sleep 5

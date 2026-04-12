@@ -66,6 +66,61 @@ class YabedaTest < SpeedshopCloudwatchTest
     assert_equal "None", metric[:unit]
   end
 
+  def test_metric_and_dimension_name_formatters_are_applied
+    with_yabeda_warnings_silenced do
+      Yabeda.reset!
+    end
+
+    adapter = Speedshop::Cloudwatch::Yabeda.new(
+      metric_name_formatter: ->(name) { name.upcase },
+      dimension_name_formatter: ->(name) { name.capitalize }
+    )
+    Yabeda.register_adapter(:cloudwatch, adapter)
+
+    Yabeda.configure do
+      group :test_group do
+        counter :formatted_counter, comment: "Counter", tags: %i[tag], unit: :count
+      end
+    end
+    Yabeda.configure!
+
+    Yabeda.test_group.formatted_counter.increment({tag: "v"}, by: 1)
+
+    flush_metrics
+
+    metric = @test_client.find_metrics(metric_name: "FORMATTED_COUNTER").first
+    refute_nil metric
+    assert_equal "v", dimension_value(metric, "Tag")
+  end
+
+  def test_allowlist_filters_metrics_after_formatting
+    with_yabeda_warnings_silenced do
+      Yabeda.reset!
+    end
+
+    adapter = Speedshop::Cloudwatch::Yabeda.new(
+      metric_name_formatter: ->(name) { name.upcase },
+      allowlist: {"TestGroup" => ["ALLOWED_COUNTER"]}
+    )
+    Yabeda.register_adapter(:cloudwatch, adapter)
+
+    Yabeda.configure do
+      group :test_group do
+        counter :allowed_counter, comment: "Counter", unit: :count
+        counter :blocked_counter, comment: "Counter", unit: :count
+      end
+    end
+    Yabeda.configure!
+
+    Yabeda.test_group.allowed_counter.increment({}, by: 1)
+    Yabeda.test_group.blocked_counter.increment({}, by: 1)
+
+    flush_metrics
+
+    assert @test_client.metric_sent?("ALLOWED_COUNTER", namespace: "TestGroup")
+    refute @test_client.metric_sent?("BLOCKED_COUNTER", namespace: "TestGroup")
+  end
+
   def test_multiple_updates_aggregate_through_reporter
     Yabeda.test_group.my_counter.increment({tag: "v"}, by: 5)
     Yabeda.test_group.my_counter.increment({tag: "v"}, by: 7)
