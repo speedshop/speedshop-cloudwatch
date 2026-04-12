@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require "speedshop/cloudwatch/puma_observations"
+require "speedshop/cloudwatch/observations"
 
 module Speedshop
   module Cloudwatch
     class Puma
       def collect
-        PumaObservations.from_stats(::Puma.stats_hash).each do |observation|
+        Observations::Puma.from_stats(::Puma.stats_hash).each do |observation|
           MetricMapper.instance.report(
             metric: observation[:metric],
             value: observation[:value],

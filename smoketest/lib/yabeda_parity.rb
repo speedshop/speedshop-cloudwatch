@@ -1,8 +1,5 @@
-require "speedshop/cloudwatch/active_job_queue_latency"
 require "speedshop/cloudwatch/metrics"
-require "speedshop/cloudwatch/puma_observations"
-require "speedshop/cloudwatch/request_queue_time"
-require "speedshop/cloudwatch/sidekiq_observations"
+require "speedshop/cloudwatch/observations"
 require "speedshop/cloudwatch/yabeda"
 
 module Smoketest
@@ -51,7 +48,7 @@ module Smoketest
           collect do
             next unless parity_process?("puma")
 
-            Speedshop::Cloudwatch::PumaObservations.from_stats(::Puma.stats_hash).each do |observation|
+            Speedshop::Cloudwatch::Observations::Puma.from_stats(::Puma.stats_hash).each do |observation|
               report_puma_observation(observation)
             end
           end
@@ -75,7 +72,7 @@ module Smoketest
           collect do
             next unless parity_process?("sidekiq")
 
-            Speedshop::Cloudwatch::SidekiqObservations.collect.each do |observation|
+            Speedshop::Cloudwatch::Observations::Sidekiq.collect.each do |observation|
               report_sidekiq_observation(observation)
             end
           end
@@ -84,12 +81,12 @@ module Smoketest
     end
 
     def report_rack_queue_time(env)
-      queue_time = Speedshop::Cloudwatch::RequestQueueTime.from_env(env)
+      queue_time = Speedshop::Cloudwatch::Observations::Rack.request_queue_time(env)
       Yabeda.rack.request_queue_time.measure({}, queue_time) if queue_time
     end
 
     def report_active_job(job)
-      observation = Speedshop::Cloudwatch::ActiveJobQueueLatency.for(job)
+      observation = Speedshop::Cloudwatch::Observations::ActiveJob.queue_latency(job)
       return unless observation
 
       Yabeda.active_job.queue_latency.measure(observation[:dimensions], observation[:value])

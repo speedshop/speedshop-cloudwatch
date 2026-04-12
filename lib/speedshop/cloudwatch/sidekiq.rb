@@ -24,13 +24,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-require "speedshop/cloudwatch/sidekiq_observations"
+require "speedshop/cloudwatch/observations"
 
 module Speedshop
   module Cloudwatch
     class Sidekiq
       def collect
-        SidekiqObservations.collect.each do |observation|
+        Observations::Sidekiq.collect.each do |observation|
           metric_mapper.report(
             metric: observation[:metric],
             value: observation[:value],

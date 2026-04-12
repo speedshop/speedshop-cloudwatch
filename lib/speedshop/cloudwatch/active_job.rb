@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "speedshop/cloudwatch/active_job_queue_latency"
+require "speedshop/cloudwatch/observations"
 
 module Speedshop
   module Cloudwatch
@@ -11,7 +11,7 @@ module Speedshop
 
       def report_job_metrics
         begin
-          observation = ActiveJobQueueLatency.for(self)
+          observation = Observations::ActiveJob.queue_latency(self)
           if observation
             MetricMapper.instance.report(
               metric: :QueueLatency,
