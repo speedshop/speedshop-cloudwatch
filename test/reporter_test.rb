@@ -8,6 +8,7 @@ class ReporterTest < SpeedshopCloudwatchTest
     @config = Speedshop::Cloudwatch.config
     @config.metrics[:sidekiq] = [:EnqueuedJobs, :ProcessedJobs, :FailedJobs, :QueueLatency, :QueueSize]
     @reporter = Speedshop::Cloudwatch.reporter
+    @metric_mapper = Speedshop::Cloudwatch.metric_mapper
   end
 
   def teardown
@@ -16,8 +17,8 @@ class ReporterTest < SpeedshopCloudwatchTest
   end
 
   def test_queues_metrics
-    @reporter.report(metric: :EnqueuedJobs, value: 42, integration: :sidekiq)
-    @reporter.report(metric: :ProcessedJobs, value: 100, integration: :sidekiq)
+    @metric_mapper.report(metric: :EnqueuedJobs, value: 42, integration: :sidekiq)
+    @metric_mapper.report(metric: :ProcessedJobs, value: 100, integration: :sidekiq)
   end
 
   def test_can_start_and_stop
@@ -27,8 +28,8 @@ class ReporterTest < SpeedshopCloudwatchTest
 
   def test_respects_puma_metrics_whitelist
     @config.metrics[:puma] = [:Workers]
-    @reporter.report(metric: :Workers, value: 4)
-    @reporter.report(metric: :BootedWorkers, value: 4)
+    @metric_mapper.report(metric: :Workers, value: 4)
+    @metric_mapper.report(metric: :BootedWorkers, value: 4)
     @reporter.start!
     @reporter.flush_now!
 
@@ -39,9 +40,9 @@ class ReporterTest < SpeedshopCloudwatchTest
 
   def test_respects_sidekiq_metrics_whitelist
     @config.metrics[:sidekiq] = [:EnqueuedJobs, :QueueLatency]
-    @reporter.report(metric: :EnqueuedJobs, value: 10)
-    @reporter.report(metric: :ProcessedJobs, value: 100)
-    @reporter.report(metric: :QueueLatency, value: 5.2)
+    @metric_mapper.report(metric: :EnqueuedJobs, value: 10)
+    @metric_mapper.report(metric: :ProcessedJobs, value: 100)
+    @metric_mapper.report(metric: :QueueLatency, value: 5.2)
     @reporter.start!
     @reporter.flush_now!
 
@@ -86,7 +87,7 @@ class ReporterTest < SpeedshopCloudwatchTest
 
   def test_adds_custom_dimensions_to_metrics
     @config.dimensions = {ServiceName: "myservice-api", Environment: "production"}
-    @reporter.report(metric: :EnqueuedJobs, value: 42, dimensions: {Region: "us-east-1"}, integration: :sidekiq)
+    @metric_mapper.report(metric: :EnqueuedJobs, value: 42, dimensions: {Region: "us-east-1"}, integration: :sidekiq)
     @reporter.start!
     @reporter.flush_now!
 
@@ -108,7 +109,7 @@ class ReporterTest < SpeedshopCloudwatchTest
   end
 
   def test_works_without_custom_dimensions
-    @reporter.report(metric: :EnqueuedJobs, value: 42, dimensions: {Region: "us-east-1"}, integration: :sidekiq)
+    @metric_mapper.report(metric: :EnqueuedJobs, value: 42, dimensions: {Region: "us-east-1"}, integration: :sidekiq)
     @reporter.start!
     @reporter.flush_now!
 
@@ -122,7 +123,7 @@ class ReporterTest < SpeedshopCloudwatchTest
 
   def test_custom_dimensions_with_no_metric_dimensions
     @config.dimensions = {ServiceName: "myservice-api"}
-    @reporter.report(metric: :EnqueuedJobs, value: 42, integration: :sidekiq)
+    @metric_mapper.report(metric: :EnqueuedJobs, value: 42, integration: :sidekiq)
     @reporter.start!
     @reporter.flush_now!
 
@@ -137,19 +138,19 @@ class ReporterTest < SpeedshopCloudwatchTest
   def test_lazy_startup_on_first_report
     refute @reporter.started?
 
-    @reporter.report(metric: :EnqueuedJobs, value: 42, integration: :sidekiq)
+    @metric_mapper.report(metric: :EnqueuedJobs, value: 42, integration: :sidekiq)
 
     assert @reporter.started?
   end
 
   def test_lazy_startup_restarts_after_stop
-    @reporter.report(metric: :EnqueuedJobs, value: 1, integration: :sidekiq)
+    @metric_mapper.report(metric: :EnqueuedJobs, value: 1, integration: :sidekiq)
     assert @reporter.started?
 
     @reporter.stop!
     refute @reporter.started?
 
-    @reporter.report(metric: :ProcessedJobs, value: 2, integration: :sidekiq)
+    @metric_mapper.report(metric: :ProcessedJobs, value: 2, integration: :sidekiq)
     assert @reporter.started?
   end
 
@@ -175,7 +176,7 @@ class ReporterTest < SpeedshopCloudwatchTest
     @config.enabled_environments = ["production"]
     @config.environment = "test"
 
-    @reporter.report(metric: :EnqueuedJobs, value: 42, integration: :sidekiq)
+    @metric_mapper.report(metric: :EnqueuedJobs, value: 42, integration: :sidekiq)
 
     refute @reporter.started?
     assert_equal 0, @test_client.metric_count
@@ -185,7 +186,7 @@ class ReporterTest < SpeedshopCloudwatchTest
     @config.enabled_environments = ["development", "test"]
     @config.environment = "test"
 
-    @reporter.report(metric: :EnqueuedJobs, value: 42, integration: :sidekiq)
+    @metric_mapper.report(metric: :EnqueuedJobs, value: 42, integration: :sidekiq)
 
     assert @reporter.started?
   end
@@ -193,15 +194,13 @@ class ReporterTest < SpeedshopCloudwatchTest
   def test_queue_respects_max_size
     @config.queue_max_size = 5
 
-    6.times { |i| @reporter.report(metric: :EnqueuedJobs, integration: :sidekiq, value: i) }
+    6.times { |i| @metric_mapper.report(metric: :EnqueuedJobs, integration: :sidekiq, value: i) }
     @reporter.start!
     @reporter.flush_now!
 
-    # Metrics get aggregated, so we get 1 metric with statistic_values
     metrics = @test_client.find_metrics(metric_name: :EnqueuedJobs)
     assert_equal 1, metrics.size
 
-    # Verify the aggregated metric has 5 samples (6th was dropped)
     metric = metrics.first
     assert metric[:statistic_values], "Expected metric to be aggregated"
     assert_equal 5.0, metric[:statistic_values][:sample_count]
@@ -210,19 +209,16 @@ class ReporterTest < SpeedshopCloudwatchTest
   def test_queue_drops_oldest_metrics_on_overflow
     @config.queue_max_size = 3
 
-    @reporter.report(metric: :EnqueuedJobs, integration: :sidekiq, value: 1)
-    @reporter.report(metric: :EnqueuedJobs, integration: :sidekiq, value: 2)
-    @reporter.report(metric: :EnqueuedJobs, integration: :sidekiq, value: 3)
-    @reporter.report(metric: :EnqueuedJobs, integration: :sidekiq, value: 4)
+    @metric_mapper.report(metric: :EnqueuedJobs, integration: :sidekiq, value: 1)
+    @metric_mapper.report(metric: :EnqueuedJobs, integration: :sidekiq, value: 2)
+    @metric_mapper.report(metric: :EnqueuedJobs, integration: :sidekiq, value: 3)
+    @metric_mapper.report(metric: :EnqueuedJobs, integration: :sidekiq, value: 4)
     @reporter.start!
     @reporter.flush_now!
 
-    # Metrics get aggregated into a single metric with statistic_values
     metrics = @test_client.find_metrics(metric_name: :EnqueuedJobs)
     assert_equal 1, metrics.size
 
-    # Verify oldest metric was dropped and newest were kept
-    # After aggregation, we get statistic_values with 3 samples (min=2, max=4)
     metric = metrics.first
     assert metric[:statistic_values], "Expected metric to be aggregated"
     assert_equal 3.0, metric[:statistic_values][:sample_count]
@@ -235,7 +231,7 @@ class ReporterTest < SpeedshopCloudwatchTest
     log_output = StringIO.new
     @config.logger = Logger.new(log_output)
 
-    5.times { |i| @reporter.report(metric: :EnqueuedJobs, integration: :sidekiq, value: i) }
+    5.times { |i| @metric_mapper.report(metric: :EnqueuedJobs, integration: :sidekiq, value: i) }
 
     @reporter.send(:log_overflow_if_needed)
 
@@ -248,7 +244,7 @@ class ReporterTest < SpeedshopCloudwatchTest
     @config.queue_max_size = 2
     @config.logger = Logger.new(nil)
 
-    5.times { |i| @reporter.report(metric: :EnqueuedJobs, integration: :sidekiq, value: i) }
+    5.times { |i| @metric_mapper.report(metric: :EnqueuedJobs, integration: :sidekiq, value: i) }
     @reporter.send(:log_overflow_if_needed)
 
     log_output = StringIO.new

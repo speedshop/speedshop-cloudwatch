@@ -27,4 +27,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "aws-sdk-cloudwatch", ">= 1.81.0"
+
+  spec.add_development_dependency "csv"
+  spec.add_development_dependency "yabeda"
 end

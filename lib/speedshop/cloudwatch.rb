@@ -3,6 +3,7 @@
 require "aws-sdk-cloudwatch"
 require "speedshop/cloudwatch/config"
 require "speedshop/cloudwatch/reporter"
+require "speedshop/cloudwatch/metric_mapper"
 require "speedshop/cloudwatch/version"
 
 module Speedshop
@@ -21,6 +22,10 @@ module Speedshop
 
       def reporter
         Reporter.instance
+      end
+
+      def metric_mapper
+        MetricMapper.instance
       end
 
       def start!

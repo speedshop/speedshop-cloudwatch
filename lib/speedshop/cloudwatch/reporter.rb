@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "singleton"
-require_relative "metrics"
 
 module Speedshop
   module Cloudwatch
@@ -26,11 +25,8 @@ module Speedshop
         @mutex.synchronize do
           return if started?
 
+          reset_after_fork! if forked?
           initialize_collectors
-          if forked?
-            @collectors.clear
-            @queue.clear
-          end
 
           Speedshop::Cloudwatch.log_info("Starting metric reporter (collectors: #{@collectors.map(&:class).join(", ")})")
           @running = true
@@ -68,30 +64,12 @@ module Speedshop
         end
       end
 
-      def report(metric:, value: nil, statistic_values: nil, dimensions: {}, integration: nil)
+      def enqueue(datum)
         return unless config.environment_enabled?
 
-        metric_name = metric.to_sym
-        int = integration || find_integration_for_metric(metric_name)
-        return unless int
-        return unless metric_allowed?(int, metric_name)
-
-        metric_object = METRICS[int]&.find { |m| m.name == metric_name }
-        ns = config.namespaces[int]
-        unit = metric_object&.unit || "None"
-
-        dimensions_array = dimensions.map { |k, v| {name: k.to_s, value: v.to_s} }
-        all_dimensions = dimensions_array + custom_dimensions
-
-        datum = {metric_name: metric_name.to_s, namespace: ns, unit: unit,
-                 dimensions: all_dimensions, timestamp: Time.now}
-        if statistic_values
-          datum[:statistic_values] = statistic_values
-        else
-          datum[:value] = value
-        end
-
         @mutex.synchronize do
+          reset_after_fork! if forked?
+
           if @queue.size >= config.queue_max_size
             @queue.shift
             @dropped_since_last_flush += 1
@@ -137,10 +115,20 @@ module Speedshop
         @pid != Process.pid
       end
 
+      def reset_after_fork!
+        @collectors.clear
+        @queue.clear
+        @thread = nil
+        @running = false
+        @dropped_since_last_flush = 0
+        @pid = Process.pid
+      end
+
       def initialize_collectors
         config.collectors.each do |integration|
           @collectors << Speedshop::Cloudwatch::Puma.new if integration == :puma
           @collectors << Speedshop::Cloudwatch::Sidekiq.new if integration == :sidekiq
+          @collectors << Speedshop::Cloudwatch::Yabeda::Collector.new if integration == :yabeda
         rescue => e
           Speedshop::Cloudwatch.log_error("Failed to initialize collector for #{integration}: #{e.message}", e)
         end
@@ -230,7 +218,7 @@ module Speedshop
       def group_metrics(ns_metrics)
         groups = {}
         ns_metrics.each do |m|
-          key = [m[:metric_name], m[:unit], normalized_dimensions_key(m[:dimensions])]
+          key = [m[:metric_name], m[:unit], normalized_dimensions_key(m[:dimensions]), m[:aggregation_strategy]]
           (groups[key] ||= []) << m
         end
         groups.values
@@ -238,6 +226,10 @@ module Speedshop
 
       def aggregate_group(items)
         return items.first if items.size == 1
+
+        strategy = items.first[:aggregation_strategy]
+        return aggregate_most_recent_group(items) if strategy == :most_recent
+        return aggregate_max_group(items) if strategy == :max
 
         sample_count, sum, minimum, maximum = aggregate_values(items)
         {
@@ -275,6 +267,21 @@ module Speedshop
         [sample_count, sum, minimum, maximum]
       end
 
+      def aggregate_most_recent_group(items)
+        items.last
+      end
+
+      def aggregate_max_group(items)
+        items.max_by { |item| item_value_for_max(item) }
+      end
+
+      def item_value_for_max(item)
+        return item[:statistic_values][:maximum].to_f if item[:statistic_values]
+        return item[:value].to_f if item.key?(:value)
+
+        -Float::INFINITY
+      end
+
       def build_statistic_values(sample_count, sum, minimum, maximum)
         {
           sample_count: sample_count,
@@ -286,18 +293,6 @@ module Speedshop
 
       def normalized_dimensions_key(dims)
         (dims || []).sort_by { |d| d[:name].to_s }.map { |d| "#{d[:name]}=#{d[:value]}" }.join("|")
-      end
-
-      def metric_allowed?(integration, metric_name)
-        config.metrics[integration].include?(metric_name.to_sym)
-      end
-
-      def custom_dimensions
-        config.dimensions.map { |name, value| {name: name.to_s, value: value.to_s} }
-      end
-
-      def find_integration_for_metric(metric_name)
-        METRICS.find { |int, metrics| metrics.any? { |m| m.name == metric_name } }&.first
       end
 
       def log_overflow_if_needed

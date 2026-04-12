@@ -1,2 +1,6 @@
 [tools]
 ruby = "2.7"
+
+[tasks.lint]
+description = "Run Ruby linters"
+run = "bundle exec standardrb"

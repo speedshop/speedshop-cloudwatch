@@ -55,8 +55,8 @@ class RackTest < SpeedshopCloudwatchTest
 
   def test_errors_during_metric_reporting_do_not_prevent_response
     configure_cloudwatch_for_test
-    reporter = Speedshop::Cloudwatch.reporter
-    reporter.stub :report, ->(*) { raise "Metric reporting error" } do
+    metric_mapper = Speedshop::Cloudwatch.metric_mapper
+    metric_mapper.stub :report, ->(*) { raise "Metric reporting error" } do
       status, _headers, _body = call_middleware_with_header("HTTP_X_REQUEST_START")
       assert_equal 200, status
     end
@@ -67,10 +67,10 @@ class RackTest < SpeedshopCloudwatchTest
       config.namespaces[:rack] = "MyApp/Rack"
     end
 
-    reporter = Speedshop::Cloudwatch.reporter
+    metric_mapper = Speedshop::Cloudwatch.metric_mapper
 
     reported_kwargs = nil
-    reporter.stub :report, ->(**kwargs) { reported_kwargs = kwargs } do
+    metric_mapper.stub :report, ->(**kwargs) { reported_kwargs = kwargs } do
       call_middleware_with_header("HTTP_X_REQUEST_START")
     end
 
@@ -86,8 +86,8 @@ class RackTest < SpeedshopCloudwatchTest
 
     @middleware = Speedshop::Cloudwatch::Rack.new(@app)
 
-    reporter = Speedshop::Cloudwatch.reporter
-    reporter.stub :report, ->(*) { raise "boom" } do
+    metric_mapper = Speedshop::Cloudwatch.metric_mapper
+    metric_mapper.stub :report, ->(*) { raise "boom" } do
       env = {"HTTP_X_REQUEST_START" => "t=#{(Time.now.to_f * 1000) - 100}"}
       status, _headers, _body = @middleware.call(env)
       assert_equal 200, status

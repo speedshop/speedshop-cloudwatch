@@ -9,7 +9,15 @@ on:
 jobs:
   smoketest:
     runs-on: ubuntu-latest
-    name: Full Integration Test
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Full Integration Test
+            script: ./run_smoketest.sh
+          - name: Yabeda Integration Test
+            script: ./run_yabeda_smoketest.sh
 
     services:
       redis:
@@ -37,4 +45,4 @@ jobs:
       - name: Run smoketest
         run: |
           cd smoketest
-          ./run_smoketest.sh
+          ${{ matrix.script }}

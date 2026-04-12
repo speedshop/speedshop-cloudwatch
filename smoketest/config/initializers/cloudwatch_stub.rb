@@ -32,17 +32,24 @@ Speedshop::Cloudwatch.configure do |config|
   config.interval = 15
   config.logger = Rails.logger
 
-  # Enable all metrics for smoketest
-  config.metrics[:puma] = [
-    :Workers, :BootedWorkers, :OldWorkers, :Running, :Backlog, :PoolCapacity, :MaxThreads
-  ]
-  config.metrics[:sidekiq] = [
-    :EnqueuedJobs, :ProcessedJobs, :FailedJobs, :ScheduledJobs, :RetryJobs,
-    :DeadJobs, :Workers, :Processes, :DefaultQueueLatency, :Capacity,
-    :Utilization, :QueueLatency, :QueueSize
-  ]
-  config.metrics[:rack] = [:RequestQueueTime]
-  config.metrics[:active_job] = [:QueueLatency]
-  
+  if ENV["SMOKETEST_MODE"] == "yabeda"
+    config.metrics[:puma] = []
+    config.metrics[:sidekiq] = []
+    config.metrics[:rack] = []
+    config.metrics[:active_job] = []
+  else
+    # Enable all built-in metrics for smoketest
+    config.metrics[:puma] = [
+      :Workers, :BootedWorkers, :OldWorkers, :Running, :Backlog, :PoolCapacity, :MaxThreads
+    ]
+    config.metrics[:sidekiq] = [
+      :EnqueuedJobs, :ProcessedJobs, :FailedJobs, :ScheduledJobs, :RetryJobs,
+      :DeadJobs, :Workers, :Processes, :DefaultQueueLatency, :Capacity,
+      :Utilization, :QueueLatency, :QueueSize
+    ]
+    config.metrics[:rack] = [:RequestQueueTime]
+    config.metrics[:active_job] = [:QueueLatency]
+  end
+
   config.environment = "production"
 end

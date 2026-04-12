@@ -83,6 +83,8 @@ GEM
       uri (>= 0.13.1)
     addressable (2.8.7)
       public_suffix (>= 2.0.2, < 7.0)
+    anyway_config (2.8.0)
+      ruby-next-core (~> 1.0)
     aws-eventstream (1.4.0)
     aws-partitions (1.1179.0)
     aws-sdk-cloudwatch (1.124.0)
@@ -113,6 +115,7 @@ GEM
       irb (~> 1.10)
       reline (>= 0.3.8)
     drb (2.2.3)
+    dry-initializer (3.2.0)
     erb (5.1.3)
     erubi (1.13.1)
     globalid (1.3.0)
@@ -226,6 +229,7 @@ GEM
     reline (0.6.2)
       io-console (~> 0.5)
     rexml (3.4.4)
+    ruby-next-core (1.2.0)
     securerandom (0.4.1)
     sidekiq (8.0.8)
       connection_pool (>= 2.5.0)
@@ -249,6 +253,20 @@ GEM
       base64
       websocket-extensions (>= 0.1.0)
     websocket-extensions (0.1.5)
+    yabeda (0.16.0)
+      anyway_config (>= 1.0, < 3)
+      concurrent-ruby
+      dry-initializer
+    yabeda-puma-plugin (0.9.0)
+      json
+      puma
+      yabeda (~> 0.5)
+    yabeda-rack-queue (0.2.0)
+      yabeda (>= 0.14, < 1.0)
+    yabeda-sidekiq (0.12.0)
+      anyway_config (>= 1.3, < 3)
+      sidekiq
+      yabeda (~> 0.6)
     zeitwerk (2.7.3)
 
 PLATFORMS
@@ -270,6 +288,10 @@ DEPENDENCIES
   sidekiq (~> 8.0)
   speedshop-cloudwatch!
   webmock
+  yabeda
+  yabeda-puma-plugin
+  yabeda-rack-queue
+  yabeda-sidekiq
 
 RUBY VERSION
    ruby 3.4.7p58
