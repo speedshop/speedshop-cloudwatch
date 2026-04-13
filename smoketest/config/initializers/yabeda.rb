@@ -1,9 +1,17 @@
-return unless ENV["SMOKETEST_MODE"] == "yabeda"
+mode = ENV["SMOKETEST_MODE"]
+return unless mode == "yabeda_parity" || mode == "yabeda_plugin"
 
-require "speedshop/cloudwatch/yabeda"
-require "yabeda/rack/queue"
-require "yabeda/sidekiq"
+if mode == "yabeda_parity"
+  require_relative "../../lib/yabeda_parity"
 
-Yabeda.register_adapter(:cloudwatch, Speedshop::Cloudwatch::Yabeda.new)
+  Smoketest::YabedaParity.setup!
+  Rails.application.config.middleware.use Smoketest::YabedaParity::RackMiddleware
+else
+  require "speedshop/cloudwatch/yabeda"
+  require "yabeda/rack/queue"
+  require "yabeda/sidekiq"
 
-Rails.application.config.middleware.use Yabeda::Rack::Queue::Middleware, logger: Rails.logger
+  Yabeda.register_adapter(:cloudwatch, Speedshop::Cloudwatch::Yabeda.new)
+
+  Rails.application.config.middleware.use Yabeda::Rack::Queue::Middleware, logger: Rails.logger
+end

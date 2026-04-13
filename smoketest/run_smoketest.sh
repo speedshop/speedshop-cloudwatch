@@ -12,9 +12,9 @@ export AWS_REGION=us-east-1
 export AWS_ACCESS_KEY_ID=fake-key
 export AWS_SECRET_ACCESS_KEY=fake-secret
 
-SMOKETEST_MODE="${SMOKETEST_MODE:-builtin}"
-SMOKETEST_TITLE="${SMOKETEST_TITLE:-Speedshop Cloudwatch Smoketest}"
-VERIFY_SCRIPT="${VERIFY_SCRIPT:-verify_metrics.rb}"
+export SMOKETEST_MODE="${SMOKETEST_MODE:-builtin}"
+export SMOKETEST_TITLE="${SMOKETEST_TITLE:-Speedshop Cloudwatch Smoketest}"
+export VERIFY_SCRIPT="${VERIFY_SCRIPT:-verify_metrics.rb}"
 
 cleanup() {
   echo ""
@@ -60,7 +60,7 @@ echo ""
 
 echo "Step 3: Starting Rails server (Puma)..."
 mkdir -p log tmp/pids
-bundle exec puma -C config/puma.rb -e development > log/puma.log 2>&1 &
+SMOKETEST_PROCESS=puma bundle exec puma -C config/puma.rb -e development > log/puma.log 2>&1 &
 PUMA_PID=$!
 echo $PUMA_PID > tmp/pids/server.pid
 sleep 3
@@ -73,7 +73,7 @@ echo "✓ Rails server started with 2 workers"
 echo ""
 
 echo "Step 4: Starting Sidekiq..."
-bundle exec sidekiq > log/sidekiq.log 2>&1 &
+SMOKETEST_PROCESS=sidekiq bundle exec sidekiq > log/sidekiq.log 2>&1 &
 SIDEKIQ_PID=$!
 echo $SIDEKIQ_PID > tmp/pids/sidekiq.pid
 sleep 5
@@ -96,7 +96,7 @@ echo ""
 
 if [ "$SMOKETEST_MODE" = "builtin" ]; then
   echo "Step 6: Testing db rake task (should not report metrics)..."
-  bundle exec rake db:test_metric_report
+  CAPTURED_METRICS_FILE=rake_captured_metrics.csv bundle exec rake db:test_metric_report
   echo "✓ Rake task completed"
   echo ""
 fi

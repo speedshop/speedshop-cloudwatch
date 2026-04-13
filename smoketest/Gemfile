@@ -10,9 +10,9 @@ gem "sidekiq", "~> 8.0"
 gem "speedshop-cloudwatch", path: ".."
 gem "webmock"
 gem "yabeda"
-gem "yabeda-puma-plugin"
-gem "yabeda-rack-queue"
-gem "yabeda-sidekiq"
+gem "yabeda-puma-plugin", require: false
+gem "yabeda-rack-queue", require: false
+gem "yabeda-sidekiq", require: false
 
 group :development, :test do
   gem "debug"

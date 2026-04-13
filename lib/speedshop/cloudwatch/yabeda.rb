@@ -33,7 +33,12 @@ module Speedshop
         count: "Count"
       }.freeze
 
-      def initialize
+      def initialize(namespace_formatter: nil, metric_name_formatter: nil, dimension_name_formatter: nil, allowlist: nil)
+        @namespace_formatter = namespace_formatter
+        @metric_name_formatter = metric_name_formatter
+        @dimension_name_formatter = dimension_name_formatter
+        @allowlist = normalize_allowlist(allowlist)
+
         Speedshop::Cloudwatch.configure do |config|
           config.collectors << :yabeda unless config.collectors.include?(:yabeda)
         end
@@ -78,9 +83,13 @@ module Speedshop
       private
 
       def enqueue_metric(metric, tags, value)
+        namespace = namespace_for(metric)
+        metric_name = metric_name_for(metric)
+        return unless allowed?(namespace, metric_name)
+
         Reporter.instance.enqueue(
-          metric_name: metric.name.to_s,
-          namespace: namespace_for(metric),
+          metric_name: metric_name,
+          namespace: namespace,
           unit: unit_for(metric),
           dimensions: dimensions_for(tags),
           value: value,
@@ -90,7 +99,11 @@ module Speedshop
       end
 
       def namespace_for(metric)
-        metric.group.to_s.split("_").map(&:capitalize).join
+        format_value(metric.group.to_s.split("_").map(&:capitalize).join, @namespace_formatter, metric)
+      end
+
+      def metric_name_for(metric)
+        format_value(metric.name.to_s, @metric_name_formatter, metric)
       end
 
       def unit_for(metric)
@@ -98,8 +111,12 @@ module Speedshop
       end
 
       def dimensions_for(tags)
-        tag_dimensions = tags.to_h.map { |name, value| {name: name.to_s, value: value.to_s} }
-        tag_dimensions + Config.instance.dimensions.map { |name, value| {name: name.to_s, value: value.to_s} }
+        tag_dimensions = tags.to_h.map do |name, value|
+          {name: format_value(name.to_s, @dimension_name_formatter), value: value.to_s}
+        end
+        tag_dimensions + Config.instance.dimensions.map do |name, value|
+          {name: format_value(name.to_s, @dimension_name_formatter), value: value.to_s}
+        end
       end
 
       def aggregation_strategy_for(metric)
@@ -107,6 +124,26 @@ module Speedshop
 
         strategy = metric.aggregation&.to_sym
         strategy if %i[most_recent max].include?(strategy)
+      end
+
+      def allowed?(namespace, metric_name)
+        return true unless @allowlist
+
+        Array(@allowlist[namespace]).map(&:to_s).include?(metric_name.to_s)
+      end
+
+      def normalize_allowlist(allowlist)
+        return unless allowlist
+
+        allowlist.each_with_object({}) do |(namespace, metrics), normalized|
+          normalized[namespace.to_s] = Array(metrics).map(&:to_s)
+        end
+      end
+
+      def format_value(value, formatter, metric = nil)
+        return value unless formatter
+
+        (formatter.arity == 1) ? formatter.call(value) : formatter.call(value, metric)
       end
     end
   end

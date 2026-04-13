@@ -51,6 +51,30 @@ class VerifySupport
     end
   end
 
+  def print_unexpected_metrics(expected_metrics)
+    puts "Checking for unexpected metrics:"
+    puts
+
+    expected = expected_metrics.transform_values { |metrics| Array(metrics).map(&:to_s).sort }
+    namespaces = (captured_metrics.keys + expected.keys).uniq.sort
+
+    namespaces.each do |namespace|
+      actual_metrics = Array(captured_metrics[namespace]).sort
+      unexpected_metrics = actual_metrics - Array(expected[namespace])
+
+      if unexpected_metrics.empty?
+        puts "  ✓ #{namespace}: no unexpected metrics"
+      else
+        unexpected_metrics.each do |metric|
+          puts "  ❌ #{namespace}/#{metric} (UNEXPECTED)"
+          yield "#{namespace}/#{metric}" if block_given?
+        end
+      end
+    end
+
+    puts
+  end
+
   def print_forbidden_metrics(forbidden_metrics)
     puts "Checking for forbidden metrics (should NOT be present):"
     puts
@@ -195,6 +219,28 @@ class VerifySupport
     end
   end
 
+  def print_metric_value_kinds(expected_kinds)
+    puts "Checking metric datum kinds:"
+    puts
+
+    expected_kinds.each do |namespace, metrics|
+      puts "#{namespace}:"
+
+      metrics.each do |metric, expected_kind|
+        actual_kinds = metric_value_kinds(namespace: namespace, metric_name: metric)
+        expected = Array(expected_kind).map(&:to_s).sort
+        if actual_kinds == expected
+          puts "  ✓ #{metric}: #{format_values(actual_kinds)}"
+        else
+          puts "  ❌ #{metric}: #{format_values(actual_kinds)} (expected #{format_values(expected)})"
+          yield "#{namespace}/#{metric}: got #{format_values(actual_kinds)}, expected #{format_values(expected)}" if block_given?
+        end
+      end
+
+      puts
+    end
+  end
+
   def metric_units(namespace:, metric_name:)
     datums_for(namespace: namespace, metric_name: metric_name).map { |datum| datum[:unit] }.compact.uniq.sort
   end
@@ -216,6 +262,35 @@ class VerifySupport
   def metric_value_sum(namespace:, metric_name:)
     datums_for(namespace: namespace, metric_name: metric_name).inject(0.0) do |sum, datum|
       sum + datum_value_sum(datum)
+    end
+  end
+
+  def metric_value_kinds(namespace:, metric_name:)
+    datums_for(namespace: namespace, metric_name: metric_name).map { |datum| datum_kind(datum) }.uniq.sort
+  end
+
+  def normalized_summary
+    datums.group_by do |datum|
+      [
+        datum[:namespace],
+        datum[:metric_name],
+        datum[:unit],
+        datum_kind(datum),
+        normalized_dimensions_hash(datum[:dimensions])
+      ]
+    end.map do |(namespace, metric_name, unit, kind, dimensions), grouped_datums|
+      {
+        namespace: namespace,
+        metric_name: metric_name,
+        unit: unit,
+        datum_kind: kind,
+        dimensions: dimensions,
+        datum_count: grouped_datums.length,
+        sample_total: grouped_datums.sum { |datum| datum_sample_count(datum) },
+        value_sum: grouped_datums.sum { |datum| datum_value_sum(datum) }
+      }
+    end.sort_by do |entry|
+      [entry[:namespace], entry[:metric_name], entry[:unit].to_s, entry[:datum_kind], entry[:dimensions].map(&:join)]
     end
   end
 
@@ -320,6 +395,14 @@ class VerifySupport
     return statistic_values[:sum] if statistic_values
 
     datum[:value] || 0.0
+  end
+
+  def datum_kind(datum)
+    datum[:statistic_values] ? "statistic_values" : "value"
+  end
+
+  def normalized_dimensions_hash(dimensions)
+    dimensions.keys.sort.map { |name| [name, dimensions[name]] }
   end
 
   def parse_float(value)

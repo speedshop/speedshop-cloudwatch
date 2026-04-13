@@ -7,12 +7,15 @@ include WebMock::API
 WebMock.enable!
 WebMock.disable_net_connect!(allow_localhost: true)
 
-METRICS_FILE = Rails.root.join("tmp", "captured_metrics.csv")
+CAPTURED_METRICS_FILE = ENV.fetch("CAPTURED_METRICS_FILE", "captured_metrics.csv")
+METRICS_FILE = Rails.root.join("tmp", CAPTURED_METRICS_FILE)
 
-FileUtils.mkdir_p(Rails.root.join("tmp"))
+FileUtils.mkdir_p(METRICS_FILE.dirname)
 
-CSV.open(METRICS_FILE, "w") do |csv|
-  csv << ["timestamp", "body", "headers"]
+unless File.exist?(METRICS_FILE)
+  CSV.open(METRICS_FILE, "w") do |csv|
+    csv << ["timestamp", "body", "headers"]
+  end
 end
 
 WebMock.stub_request(:post, /monitoring\..*\.amazonaws\.com/)
@@ -32,12 +35,7 @@ Speedshop::Cloudwatch.configure do |config|
   config.interval = 15
   config.logger = Rails.logger
 
-  if ENV["SMOKETEST_MODE"] == "yabeda"
-    config.metrics[:puma] = []
-    config.metrics[:sidekiq] = []
-    config.metrics[:rack] = []
-    config.metrics[:active_job] = []
-  else
+  if ENV["SMOKETEST_MODE"] == "builtin"
     # Enable all built-in metrics for smoketest
     config.metrics[:puma] = [
       :Workers, :BootedWorkers, :OldWorkers, :Running, :Backlog, :PoolCapacity, :MaxThreads
@@ -49,6 +47,11 @@ Speedshop::Cloudwatch.configure do |config|
     ]
     config.metrics[:rack] = [:RequestQueueTime]
     config.metrics[:active_job] = [:QueueLatency]
+  else
+    config.metrics[:puma] = []
+    config.metrics[:sidekiq] = []
+    config.metrics[:rack] = []
+    config.metrics[:active_job] = []
   end
 
   config.environment = "production"

@@ -2,7 +2,6 @@ require_relative "metric_contract"
 require_relative "verify_support"
 
 expected_metrics = SmoketestMetricContract.expected_metrics
-forbidden_metrics = SmoketestMetricContract.forbidden_metrics
 expected_metric_counts = SmoketestMetricContract.expected_metric_counts
 expected_unique_metric_counts = SmoketestMetricContract.expected_unique_metric_counts
 expected_units = SmoketestMetricContract.expected_units
@@ -18,9 +17,6 @@ verifier.print_captured_metrics(expected_metrics) { |metric| missing_metrics << 
 
 unexpected_metrics = []
 verifier.print_unexpected_metrics(expected_metrics) { |metric| unexpected_metrics << metric }
-
-forbidden_found = []
-verifier.print_forbidden_metrics(forbidden_metrics) { |metric| forbidden_found << metric }
 
 count_failures = []
 verifier.print_metric_counts(expected_metric_counts) { |failure| count_failures << failure }
@@ -42,28 +38,21 @@ verifier.print_metric_sample_totals(expected_sample_totals) { |failure| sample_t
 
 verifier.print_summary(expected_metrics)
 
-if missing_metrics.empty? && unexpected_metrics.empty? && forbidden_found.empty? && count_failures.empty? &&
-    coverage_failures.empty? && unit_failures.empty? && dimension_failures.empty? && kind_failures.empty? &&
-    sample_total_failures.empty?
-  puts "✅ All expected built-in metrics were captured!"
-  puts "✅ No unexpected or forbidden metrics were captured!"
+if missing_metrics.empty? && unexpected_metrics.empty? && count_failures.empty? && coverage_failures.empty? &&
+    unit_failures.empty? && dimension_failures.empty? && kind_failures.empty? && sample_total_failures.empty?
+  puts "✅ The Yabeda parity smoketest matched the built-in contract!"
   puts "✅ Units, dimensions, datum kinds, and sample totals matched expectations!"
   exit 0
 end
 
 if missing_metrics.any?
-  puts "❌ Missing #{missing_metrics.length} metrics:"
+  puts "❌ Missing #{missing_metrics.length} parity metrics:"
   missing_metrics.each { |metric| puts "   - #{metric}" }
 end
 
 if unexpected_metrics.any?
-  puts "❌ Found #{unexpected_metrics.length} unexpected metrics:"
+  puts "❌ Found #{unexpected_metrics.length} unexpected parity metrics:"
   unexpected_metrics.each { |metric| puts "   - #{metric}" }
-end
-
-if forbidden_found.any?
-  puts "❌ Found #{forbidden_found.length} forbidden metrics:"
-  forbidden_found.each { |metric| puts "   - #{metric}" }
 end
 
 if count_failures.any?

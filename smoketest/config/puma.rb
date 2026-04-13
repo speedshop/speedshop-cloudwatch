@@ -11,13 +11,18 @@ pidfile ENV.fetch("PIDFILE", "tmp/pids/server.pid")
 workers ENV.fetch("WEB_CONCURRENCY", 2)
 preload_app!
 
-if ENV["SMOKETEST_MODE"] == "yabeda"
+case ENV["SMOKETEST_MODE"]
+when "yabeda_plugin"
   activate_control_app
   plugin :yabeda
+when "yabeda_parity"
+  # The parity smoketest uses custom Yabeda collectors that mirror the built-in contract.
 else
   Speedshop::Cloudwatch.configure do |config|
     config.collectors << :puma
   end
 end
 
-Speedshop::Cloudwatch.start!
+on_booted do
+  Speedshop::Cloudwatch.start!
+end
