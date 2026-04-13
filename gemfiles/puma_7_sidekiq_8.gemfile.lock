@@ -1,7 +1,7 @@
 PATH
   remote: ..
   specs:
-    speedshop-cloudwatch (0.1.0)
+    speedshop-cloudwatch (0.2.0)
       aws-sdk-cloudwatch (>= 1.81.0)
 
 GEM
