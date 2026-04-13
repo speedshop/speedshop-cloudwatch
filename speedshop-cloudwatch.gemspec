@@ -21,7 +21,7 @@ Gem::Specification.new do |spec|
   spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
     ls.readlines("\x0", chomp: true).select do |path|
       path.start_with?("lib/", "bin/", "docs/") ||
-        %w[README.md LICENSE.txt speedshop-cloudwatch.gemspec Rakefile].include?(path)
+        %w[README.md CHANGELOG.md LICENSE.txt speedshop-cloudwatch.gemspec Rakefile].include?(path)
     end
   end
   spec.require_paths = ["lib"]
