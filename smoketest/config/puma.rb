@@ -23,4 +23,6 @@ else
   end
 end
 
-Speedshop::Cloudwatch.start!
+on_booted do
+  Speedshop::Cloudwatch.start!
+end

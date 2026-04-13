@@ -12,9 +12,9 @@ export AWS_REGION=us-east-1
 export AWS_ACCESS_KEY_ID=fake-key
 export AWS_SECRET_ACCESS_KEY=fake-secret
 
-SMOKETEST_MODE="${SMOKETEST_MODE:-builtin}"
-SMOKETEST_TITLE="${SMOKETEST_TITLE:-Speedshop Cloudwatch Smoketest}"
-VERIFY_SCRIPT="${VERIFY_SCRIPT:-verify_metrics.rb}"
+export SMOKETEST_MODE="${SMOKETEST_MODE:-builtin}"
+export SMOKETEST_TITLE="${SMOKETEST_TITLE:-Speedshop Cloudwatch Smoketest}"
+export VERIFY_SCRIPT="${VERIFY_SCRIPT:-verify_metrics.rb}"
 
 cleanup() {
   echo ""
