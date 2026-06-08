@@ -144,7 +144,7 @@ If you're using Rails, we'll automatically insert the correct middleware into th
 
 If you're using some other Rack-based framework, insert the `Speedshop::Cloudwatch::Rack` high up (i.e. first) in the stack.
 
-You will need a reverse proxy, such as nginx, adding an `X-Request-Start` or `X-Queue-Start` header (containing the time since the Unix epoch in milliseconds) to incoming requests. See [New Relic's instructions](https://docs.newrelic.com/docs/apm/applications-menu/features/configure-request-queue-reporting/) for more about how to do this.
+You will need a reverse proxy, such as nginx, adding an `X-Request-Start` or `X-Queue-Start` header to incoming requests. The header may use common queue-time formats such as epoch milliseconds (`1512379167574`), seconds with decimals (`t=1512379167.574`), or microseconds (`t=1570633834463123`). See [New Relic's instructions](https://docs.newrelic.com/docs/apm/applications-menu/features/configure-request-queue-reporting/) for more about how to do this.
 
 We report the following metrics:
 
