@@ -162,7 +162,7 @@ module Speedshop
           description: "Time a request spent waiting in the reverse proxy before " \
                        "reaching the application. High values indicate requests " \
                        "backing up before reaching your application server.",
-          source: "parsed X-Request-Start/X-Queue-Start timestamp"
+          source: "parsed X-Request-Start/X-Queue-Start timestamp minus Puma request body wait"
         )
       ],
 

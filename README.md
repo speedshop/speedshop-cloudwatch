@@ -146,6 +146,8 @@ If you're using some other Rack-based framework, insert the `Speedshop::Cloudwat
 
 You will need a reverse proxy, such as nginx, adding an `X-Request-Start` or `X-Queue-Start` header to incoming requests. The header may use common queue-time formats such as epoch milliseconds (`1512379167574`), seconds with decimals (`t=1512379167.574`), or microseconds (`t=1570633834463123`). See [New Relic's instructions](https://docs.newrelic.com/docs/apm/applications-menu/features/configure-request-queue-reporting/) for more about how to do this.
 
+When Puma exposes `env["puma.request_body_wait"]`, we subtract it from queue time so slow request-body uploads are not counted as upstream queueing.
+
 We report the following metrics:
 
 ```

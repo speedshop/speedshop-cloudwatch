@@ -12,10 +12,10 @@ module Speedshop
           T_EQUALS_RE = /t\s*=\s*(#{NUMBER_RE.source})/i
 
           def parse(value, now:)
-            first = value.to_s.split(",", 2).first.to_s.strip
-            return if first.empty?
+            header_value = value.to_s.split(",", 2).first.to_s.strip
+            return if header_value.empty?
 
-            token = first[T_EQUALS_RE, 1] || first[NUMBER_RE, 0]
+            token = header_value[T_EQUALS_RE, 1] || header_value[NUMBER_RE, 0]
             normalize(Float(token), now) if token
           rescue ArgumentError, TypeError
           end
@@ -53,7 +53,7 @@ module Speedshop
 
         def request_body_wait_ms(env)
           wait_ms = Float(env["puma.request_body_wait"])
-          wait_ms unless wait_ms.negative?
+          wait_ms if wait_ms.finite? && !wait_ms.negative?
         rescue ArgumentError, TypeError
         end
       end
