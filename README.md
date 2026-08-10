@@ -92,6 +92,14 @@ end
 > [!WARNING]
 > Setting `config.interval` to less than 60 seconds automatically enables [high-resolution storage](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/publishingMetrics.html#high-resolution-metrics) (1-second granularity) in CloudWatch, which incurs additional costs.
 
+### Percentiles and distribution statistics
+
+When a metric has multiple observations in one reporting period, the reporter publishes them using CloudWatch `Values` and `Counts`. Repeated values are frequency-encoded, and distributions with more than CloudWatch's limit of 150 unique values are split across multiple metric datums.
+
+This preserves the observed distribution, allowing CloudWatch to calculate `p50`, `p95`, `p99`, trimmed means, and other distribution statistics in addition to Average, Sum, Minimum, Maximum, and SampleCount. Observations discarded because `config.queue_max_size` was exceeded are not included.
+
+Explicit Yabeda gauge aggregation strategies retain their existing behavior: `most_recent` publishes the last value and `max` publishes the maximum value.
+
 ### Environment Control
 
 **By default, the reporter only runs in production.** The environment is detected from `RAILS_ENV`, `RACK_ENV`, and defaults to `"development"`.
@@ -210,7 +218,7 @@ We report the following metrics:
 QueueLatency - Time job spent waiting in queue before execution (Seconds)
 ```
 
-This metric includes QueueName dimension and is aggregated per interval using CloudWatch StatisticSets.
+This metric includes a QueueName dimension and preserves the per-interval distribution using CloudWatch `Values` and `Counts`.
 
 ## Yabeda
 

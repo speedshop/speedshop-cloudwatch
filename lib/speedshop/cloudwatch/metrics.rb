@@ -171,8 +171,8 @@ module Speedshop
           name: :QueueLatency,
           unit: "Seconds",
           description: "Time a job spent waiting in the queue before execution " \
-                       "started. Values are aggregated into CloudWatch " \
-                       "StatisticSets per reporting interval.",
+                       "started. Values are frequency-encoded without discarding " \
+                       "the per-interval distribution.",
           source: "Time.now.to_f - job.enqueued_at"
         )
       ]

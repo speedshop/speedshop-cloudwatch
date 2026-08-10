@@ -36,7 +36,7 @@ class VerifySupportTest < SpeedshopCloudwatchTest
       assert_in_delta 0.25, verifier.metric_value_sum(namespace: "Sidekiq", metric_name: "job_runtime"), 0.001
       assert_equal 1.0, verifier.metric_sample_total(namespace: "RackQueue", metric_name: "duration")
       assert_equal ["value"], verifier.metric_value_kinds(namespace: "Sidekiq", metric_name: "jobs_enqueued_total")
-      assert_equal ["statistic_values"], verifier.metric_value_kinds(namespace: "Sidekiq", metric_name: "job_runtime")
+      assert_equal ["values_counts"], verifier.metric_value_kinds(namespace: "Sidekiq", metric_name: "job_runtime")
     end
   end
 
@@ -57,7 +57,7 @@ class VerifySupportTest < SpeedshopCloudwatchTest
       assert_equal 1.0, sidekiq_counter[:sample_total]
       assert_equal [["queue", "default"], ["worker", "TestSidekiqJob"]], sidekiq_counter[:dimensions]
 
-      assert_equal "statistic_values", sidekiq_runtime[:datum_kind]
+      assert_equal "values_counts", sidekiq_runtime[:datum_kind]
       assert_equal 2.0, sidekiq_runtime[:sample_total]
       assert_in_delta 0.25, sidekiq_runtime[:value_sum], 0.001
     end
@@ -91,10 +91,10 @@ class VerifySupportTest < SpeedshopCloudwatchTest
       "MetricData.member.1.Dimensions.member.2.Value=TestSidekiqJob",
       "MetricData.member.2.MetricName=job_runtime",
       "MetricData.member.2.Unit=Seconds",
-      "MetricData.member.2.StatisticValues.SampleCount=2",
-      "MetricData.member.2.StatisticValues.Sum=0.25",
-      "MetricData.member.2.StatisticValues.Minimum=0.1",
-      "MetricData.member.2.StatisticValues.Maximum=0.15",
+      "MetricData.member.2.Values.member.1=0.1",
+      "MetricData.member.2.Counts.member.1=1",
+      "MetricData.member.2.Values.member.2=0.15",
+      "MetricData.member.2.Counts.member.2=1",
       "MetricData.member.2.Dimensions.member.1.Name=queue",
       "MetricData.member.2.Dimensions.member.1.Value=default",
       "MetricData.member.2.Dimensions.member.2.Name=worker",

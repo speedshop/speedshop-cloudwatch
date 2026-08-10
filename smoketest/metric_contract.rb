@@ -132,16 +132,16 @@ module SmoketestMetricContract
         "Workers" => ["value"],
         "BootedWorkers" => ["value"],
         "OldWorkers" => ["value"],
-        "Running" => ["statistic_values"],
-        "Backlog" => ["statistic_values"],
-        "PoolCapacity" => ["statistic_values"],
-        "MaxThreads" => ["statistic_values"]
+        "Running" => ["values_counts"],
+        "Backlog" => ["values_counts"],
+        "PoolCapacity" => ["values_counts"],
+        "MaxThreads" => ["values_counts"]
       },
       "Rack" => {
-        "RequestQueueTime" => ["statistic_values"]
+        "RequestQueueTime" => ["values_counts"]
       },
       "ActiveJob" => {
-        "QueueLatency" => ["statistic_values"]
+        "QueueLatency" => ["values_counts"]
       },
       "Sidekiq" => {
         "EnqueuedJobs" => ["value"],

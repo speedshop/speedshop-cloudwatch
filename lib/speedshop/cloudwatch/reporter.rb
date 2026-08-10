@@ -5,6 +5,8 @@ require "singleton"
 module Speedshop
   module Cloudwatch
     class Reporter
+      MAX_VALUES_PER_DATUM = 150
+
       include Singleton
 
       def initialize
@@ -195,7 +197,10 @@ module Speedshop
             timestamp: m[:timestamp],
             dimensions: m[:dimensions]
           }
-          if m[:statistic_values]
+          if m[:values]
+            datum[:values] = m[:values]
+            datum[:counts] = m[:counts]
+          elsif m[:statistic_values]
             datum[:statistic_values] = m[:statistic_values]
           else
             datum[:value] = m[:value]
@@ -212,83 +217,72 @@ module Speedshop
       end
 
       def aggregate_namespace_metrics(ns_metrics)
-        group_metrics(ns_metrics).map { |items| aggregate_group(items) }
+        group_metrics(ns_metrics).flat_map { |items| aggregate_group(items) }
       end
 
       def group_metrics(ns_metrics)
         groups = {}
         ns_metrics.each do |m|
-          key = [m[:metric_name], m[:unit], normalized_dimensions_key(m[:dimensions]), m[:aggregation_strategy]]
+          key = [
+            m[:metric_name],
+            m[:unit],
+            normalized_dimensions_key(m[:dimensions]),
+            m[:aggregation_strategy],
+            m.key?(:statistic_values),
+            timestamp_bucket(m[:timestamp])
+          ]
           (groups[key] ||= []) << m
         end
         groups.values
       end
 
       def aggregate_group(items)
-        return items.first if items.size == 1
+        return items if items.size == 1
 
         strategy = items.first[:aggregation_strategy]
-        return aggregate_most_recent_group(items) if strategy == :most_recent
-        return aggregate_max_group(items) if strategy == :max
+        return [items.last] if strategy == :most_recent
+        return [items.max_by { |item| item[:value].to_f }] if strategy == :max
+        return [merge_statistic_values_group(items)] if items.first[:statistic_values]
 
-        sample_count, sum, minimum, maximum = aggregate_values(items)
+        aggregate_distribution_group(items)
+      end
+
+      def aggregate_distribution_group(items)
+        frequencies = items.each_with_object(Hash.new(0)) do |item, counts|
+          counts[item[:value].to_f] += 1
+        end
+
+        frequencies.sort_by(&:first).each_slice(MAX_VALUES_PER_DATUM).map do |slice|
+          {
+            metric_name: items.first[:metric_name],
+            unit: items.first[:unit],
+            dimensions: items.first[:dimensions],
+            timestamp: timestamp_bucket(items.first[:timestamp]),
+            values: slice.map(&:first),
+            counts: slice.map(&:last)
+          }
+        end
+      end
+
+      def merge_statistic_values_group(items)
+        statistic_values = items.map { |item| item[:statistic_values] }
         {
           metric_name: items.first[:metric_name],
           unit: items.first[:unit],
           dimensions: items.first[:dimensions],
-          timestamp: Time.now,
-          statistic_values: build_statistic_values(sample_count, sum, minimum, maximum)
+          timestamp: timestamp_bucket(items.first[:timestamp]),
+          statistic_values: {
+            sample_count: statistic_values.sum { |values| values[:sample_count].to_f },
+            sum: statistic_values.sum { |values| values[:sum].to_f },
+            minimum: statistic_values.map { |values| values[:minimum].to_f }.min,
+            maximum: statistic_values.map { |values| values[:maximum].to_f }.max
+          }
         }
       end
 
-      def aggregate_values(items)
-        sample_count = 0.0
-        sum = 0.0
-        minimum = Float::INFINITY
-        maximum = -Float::INFINITY
-
-        items.each do |item|
-          if item[:statistic_values]
-            sv = item[:statistic_values]
-            sc = sv[:sample_count].to_f
-            sample_count += sc
-            sum += sv[:sum].to_f
-            minimum = [minimum, sv[:minimum].to_f].min
-            maximum = [maximum, sv[:maximum].to_f].max
-          elsif item.key?(:value)
-            v = item[:value].to_f
-            sample_count += 1.0
-            sum += v
-            minimum = [minimum, v].min
-            maximum = [maximum, v].max
-          end
-        end
-
-        [sample_count, sum, minimum, maximum]
-      end
-
-      def aggregate_most_recent_group(items)
-        items.last
-      end
-
-      def aggregate_max_group(items)
-        items.max_by { |item| item_value_for_max(item) }
-      end
-
-      def item_value_for_max(item)
-        return item[:statistic_values][:maximum].to_f if item[:statistic_values]
-        return item[:value].to_f if item.key?(:value)
-
-        -Float::INFINITY
-      end
-
-      def build_statistic_values(sample_count, sum, minimum, maximum)
-        {
-          sample_count: sample_count,
-          sum: sum,
-          minimum: minimum.finite? ? minimum : 0.0,
-          maximum: maximum.finite? ? maximum : 0.0
-        }
+      def timestamp_bucket(timestamp)
+        period = [config.interval.to_i, 1].max
+        Time.at((timestamp.to_f / period).floor * period)
       end
 
       def normalized_dimensions_key(dims)
