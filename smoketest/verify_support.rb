@@ -219,21 +219,21 @@ class VerifySupport
     end
   end
 
-  def print_metric_value_kinds(expected_kinds)
+  def print_metric_value_kinds(allowed_kinds)
     puts "Checking metric datum kinds:"
     puts
 
-    expected_kinds.each do |namespace, metrics|
+    allowed_kinds.each do |namespace, metrics|
       puts "#{namespace}:"
 
-      metrics.each do |metric, expected_kind|
+      metrics.each do |metric, allowed_kind|
         actual_kinds = metric_value_kinds(namespace: namespace, metric_name: metric)
-        expected = Array(expected_kind).map(&:to_s).sort
-        if actual_kinds == expected
+        allowed = Array(allowed_kind).map(&:to_s).sort
+        if !actual_kinds.empty? && (actual_kinds - allowed).empty?
           puts "  ✓ #{metric}: #{format_values(actual_kinds)}"
         else
-          puts "  ❌ #{metric}: #{format_values(actual_kinds)} (expected #{format_values(expected)})"
-          yield "#{namespace}/#{metric}: got #{format_values(actual_kinds)}, expected #{format_values(expected)}" if block_given?
+          puts "  ❌ #{metric}: #{format_values(actual_kinds)} (allowed #{format_values(allowed)})"
+          yield "#{namespace}/#{metric}: got #{format_values(actual_kinds)}, allowed #{format_values(allowed)}" if block_given?
         end
       end
 
@@ -338,6 +338,8 @@ class VerifySupport
           unit: params["MetricData.member.#{index}.Unit"]&.first,
           dimensions: parse_dimensions(params, index),
           value: parse_float(params["MetricData.member.#{index}.Value"]&.first),
+          values: parse_number_list(params, "MetricData.member.#{index}.Values"),
+          counts: parse_number_list(params, "MetricData.member.#{index}.Counts"),
           statistic_values: parse_statistic_values(params, index)
         }
 
@@ -362,6 +364,13 @@ class VerifySupport
     end
   end
 
+  def parse_number_list(params, prefix)
+    keys = params.keys.grep(/\A#{Regexp.escape(prefix)}\.member\.\d+\z/)
+    values = keys.sort_by { |key| key[/\.member\.(\d+)\z/, 1].to_i }
+      .map { |key| parse_float(params[key]&.first) }
+    values unless values.empty?
+  end
+
   def parse_statistic_values(params, metric_index)
     prefix = "MetricData.member.#{metric_index}.StatisticValues"
     sample_count = parse_float(params["#{prefix}.SampleCount"]&.first)
@@ -384,6 +393,8 @@ class VerifySupport
   end
 
   def datum_sample_count(datum)
+    return datum[:counts]&.sum || datum[:values].size if datum[:values]
+
     statistic_values = datum[:statistic_values]
     return statistic_values[:sample_count] if statistic_values
 
@@ -391,6 +402,11 @@ class VerifySupport
   end
 
   def datum_value_sum(datum)
+    if datum[:values]
+      counts = datum[:counts] || Array.new(datum[:values].size, 1.0)
+      return datum[:values].zip(counts).sum { |value, count| value * count }
+    end
+
     statistic_values = datum[:statistic_values]
     return statistic_values[:sum] if statistic_values
 
@@ -398,6 +414,8 @@ class VerifySupport
   end
 
   def datum_kind(datum)
+    return "values_counts" if datum[:values]
+
     datum[:statistic_values] ? "statistic_values" : "value"
   end
 

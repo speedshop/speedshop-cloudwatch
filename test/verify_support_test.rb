@@ -36,7 +36,7 @@ class VerifySupportTest < SpeedshopCloudwatchTest
       assert_in_delta 0.25, verifier.metric_value_sum(namespace: "Sidekiq", metric_name: "job_runtime"), 0.001
       assert_equal 1.0, verifier.metric_sample_total(namespace: "RackQueue", metric_name: "duration")
       assert_equal ["value"], verifier.metric_value_kinds(namespace: "Sidekiq", metric_name: "jobs_enqueued_total")
-      assert_equal ["statistic_values"], verifier.metric_value_kinds(namespace: "Sidekiq", metric_name: "job_runtime")
+      assert_equal ["values_counts"], verifier.metric_value_kinds(namespace: "Sidekiq", metric_name: "job_runtime")
     end
   end
 
@@ -57,13 +57,64 @@ class VerifySupportTest < SpeedshopCloudwatchTest
       assert_equal 1.0, sidekiq_counter[:sample_total]
       assert_equal [["queue", "default"], ["worker", "TestSidekiqJob"]], sidekiq_counter[:dimensions]
 
-      assert_equal "statistic_values", sidekiq_runtime[:datum_kind]
+      assert_equal "values_counts", sidekiq_runtime[:datum_kind]
       assert_equal 2.0, sidekiq_runtime[:sample_total]
       assert_in_delta 0.25, sidekiq_runtime[:value_sum], 0.001
     end
   end
 
+  def test_value_kind_contract_accepts_singletons_and_distributions
+    with_metrics_file do |metrics_file|
+      verifier = VerifySupport.new(metrics_file: metrics_file)
+      failures = []
+      allowed = {"RackQueue" => {"duration" => %w[value values_counts]},
+                 "Sidekiq" => {"job_runtime" => %w[value values_counts]}}
+      capture_io { verifier.print_metric_value_kinds(allowed) { |failure| failures << failure } }
+      assert_empty failures
+    end
+  end
+
+  def test_value_kind_contract_accepts_mixed_singletons_and_distributions
+    with_metrics_file do |metrics_file|
+      CSV.open(metrics_file, "a") do |csv|
+        csv << [Time.now.to_s, "Namespace=Sidekiq&MetricData.member.1.MetricName=job_runtime&MetricData.member.1.Value=0.2", "{}"]
+      end
+      verifier = VerifySupport.new(metrics_file: metrics_file)
+      failures = value_kind_failures(verifier, "Sidekiq" => {"job_runtime" => %w[value values_counts]})
+      assert_empty failures
+      assert_equal 3, verifier.metric_sample_total(namespace: "Sidekiq", metric_name: "job_runtime")
+      assert_in_delta 0.45, verifier.metric_value_sum(namespace: "Sidekiq", metric_name: "job_runtime"), 0.001
+    end
+  end
+
+  def test_value_kind_contract_rejects_statistic_sets
+    with_metrics_file do |metrics_file|
+      CSV.open(metrics_file, "a") do |csv|
+        csv << [Time.now.to_s, "Namespace=Sidekiq&MetricData.member.1.MetricName=job_runtime&MetricData.member.1.StatisticValues.SampleCount=2", "{}"]
+      end
+      verifier = VerifySupport.new(metrics_file: metrics_file)
+      failures = value_kind_failures(verifier, "Sidekiq" => {"job_runtime" => %w[value values_counts]})
+      assert_equal 1, failures.size
+    end
+  end
+
+  def test_value_kind_contract_rejects_unexpected_or_missing_kinds
+    with_metrics_file do |metrics_file|
+      verifier = VerifySupport.new(metrics_file: metrics_file)
+      failures = []
+      allowed = {"Sidekiq" => {"job_runtime" => ["value"], "missing" => %w[value values_counts]}}
+      capture_io { verifier.print_metric_value_kinds(allowed) { |failure| failures << failure } }
+      assert_equal 2, failures.size
+    end
+  end
+
   private
+
+  def value_kind_failures(verifier, allowed)
+    failures = []
+    capture_io { verifier.print_metric_value_kinds(allowed) { |failure| failures << failure } }
+    failures
+  end
 
   def with_metrics_file
     Dir.mktmpdir do |dir|
@@ -91,10 +142,10 @@ class VerifySupportTest < SpeedshopCloudwatchTest
       "MetricData.member.1.Dimensions.member.2.Value=TestSidekiqJob",
       "MetricData.member.2.MetricName=job_runtime",
       "MetricData.member.2.Unit=Seconds",
-      "MetricData.member.2.StatisticValues.SampleCount=2",
-      "MetricData.member.2.StatisticValues.Sum=0.25",
-      "MetricData.member.2.StatisticValues.Minimum=0.1",
-      "MetricData.member.2.StatisticValues.Maximum=0.15",
+      "MetricData.member.2.Values.member.1=0.1",
+      "MetricData.member.2.Counts.member.1=1",
+      "MetricData.member.2.Values.member.2=0.15",
+      "MetricData.member.2.Counts.member.2=1",
       "MetricData.member.2.Dimensions.member.1.Name=queue",
       "MetricData.member.2.Dimensions.member.1.Value=default",
       "MetricData.member.2.Dimensions.member.2.Name=worker",

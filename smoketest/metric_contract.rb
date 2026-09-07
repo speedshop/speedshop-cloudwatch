@@ -126,22 +126,23 @@ module SmoketestMetricContract
     }
   end
 
-  def expected_value_kinds
+  # A reporting bucket with one observation uses Value; repeated observations use Values/Counts.
+  def allowed_value_kinds
     {
       "Puma" => {
         "Workers" => ["value"],
         "BootedWorkers" => ["value"],
         "OldWorkers" => ["value"],
-        "Running" => ["statistic_values"],
-        "Backlog" => ["statistic_values"],
-        "PoolCapacity" => ["statistic_values"],
-        "MaxThreads" => ["statistic_values"]
+        "Running" => %w[value values_counts],
+        "Backlog" => %w[value values_counts],
+        "PoolCapacity" => %w[value values_counts],
+        "MaxThreads" => %w[value values_counts]
       },
       "Rack" => {
-        "RequestQueueTime" => ["statistic_values"]
+        "RequestQueueTime" => %w[value values_counts]
       },
       "ActiveJob" => {
-        "QueueLatency" => ["statistic_values"]
+        "QueueLatency" => %w[value values_counts]
       },
       "Sidekiq" => {
         "EnqueuedJobs" => ["value"],

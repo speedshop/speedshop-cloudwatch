@@ -5,6 +5,10 @@ require "speedshop/cloudwatch/yabeda"
 require "yabeda"
 
 class YabedaTest < SpeedshopCloudwatchTest
+  def run
+    Time.stub(:now, Time.utc(2026, 8, 10, 12, 0, 1)) { super }
+  end
+
   def setup
     super
     with_yabeda_warnings_silenced do
@@ -130,11 +134,10 @@ class YabedaTest < SpeedshopCloudwatchTest
     metrics = @test_client.find_metrics(metric_name: :my_counter)
     assert_equal 1, metrics.size
 
-    statistic_values = metrics.first[:statistic_values]
-    assert_equal 2.0, statistic_values[:sample_count]
-    assert_equal 12.0, statistic_values[:sum]
-    assert_equal 5.0, statistic_values[:minimum]
-    assert_equal 7.0, statistic_values[:maximum]
+    metric = metrics.first
+    assert_equal [5.0, 7.0], metric[:values]
+    assert_equal [1, 1], metric[:counts]
+    refute metric.key?(:statistic_values)
   end
 
   def test_gauge_with_most_recent_aggregation_keeps_last_value
