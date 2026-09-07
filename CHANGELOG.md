@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-09-07
+
 ### Changed
 - Preserve metric distributions with CloudWatch `Values` and `Counts` instead of reducing repeated observations to StatisticSets, enabling percentile statistics without changing application configuration.
 
@@ -32,7 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release.
 
-[Unreleased]: https://github.com/speedshop/speedshop-cloudwatch/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/speedshop/speedshop-cloudwatch/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/speedshop/speedshop-cloudwatch/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/speedshop/speedshop-cloudwatch/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/speedshop/speedshop-cloudwatch/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/speedshop/speedshop-cloudwatch/releases/tag/v0.1.0
