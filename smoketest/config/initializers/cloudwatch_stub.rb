@@ -1,6 +1,7 @@
 require "aws-sdk-cloudwatch"
 require "csv"
 require "webmock"
+require_relative "../../metric_capture"
 
 include WebMock::API
 
@@ -20,9 +21,7 @@ end
 
 WebMock.stub_request(:post, /monitoring\..*\.amazonaws\.com/)
   .to_return do |request|
-    CSV.open(METRICS_FILE, "a") do |csv|
-      csv << [Time.now.to_s, request.body, request.headers.to_json]
-    end
+    MetricCapture.append(METRICS_FILE, request)
 
     {status: 200, body: '<?xml version="1.0"?><PutMetricDataResponse xmlns="http://monitoring.amazonaws.com/doc/2010-08-01/"><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></PutMetricDataResponse>', headers: {"Content-Type" => "text/xml", "Content-Encoding" => "identity"}}
   end
