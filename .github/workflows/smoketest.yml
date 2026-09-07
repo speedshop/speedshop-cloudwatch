@@ -48,3 +48,13 @@ jobs:
         run: |
           cd smoketest
           ${{ matrix.script }}
+
+      - name: Preserve failed smoketest diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoketest-${{ strategy.job-index }}-diagnostics
+          path: |
+            smoketest/log/*.log
+            smoketest/tmp/captured_metrics.csv
+          retention-days: 3
