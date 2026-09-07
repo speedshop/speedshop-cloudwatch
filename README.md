@@ -94,9 +94,11 @@ end
 
 ### Percentiles and distribution statistics
 
-When a metric has multiple observations in one reporting period, the reporter publishes them using CloudWatch `Values` and `Counts`. Repeated values are frequency-encoded, and distributions with more than CloudWatch's limit of 150 unique values are split across multiple metric datums.
+When a metric has multiple observations in one reporting period, the reporter publishes them using CloudWatch `Values` and `Counts`. Repeated values are frequency-encoded, and distributions with more than CloudWatch's limit of 150 unique values are split across multiple metric datums. Requests retain the 20-datum cap and use a conservative serialized-size bound to stay within CloudWatch's uncompressed 1 MiB limit. An individual datum exceeding that bound is logged and discarded without preventing other datums from being sent.
 
 This preserves the observed distribution, allowing CloudWatch to calculate `p50`, `p95`, `p99`, trimmed means, and other distribution statistics in addition to Average, Sum, Minimum, Maximum, and SampleCount. Observations discarded because `config.queue_max_size` was exceeded are not included.
+
+CloudWatch does not provide percentile statistics for metrics containing negative values. Explicit `statistic_values:` input remains supported, but neither it nor historical StatisticSets recovers discarded distributions.
 
 Explicit Yabeda gauge aggregation strategies retain their existing behavior: `most_recent` publishes the last value and `max` publishes the maximum value.
 

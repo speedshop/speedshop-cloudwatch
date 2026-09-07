@@ -7,7 +7,7 @@ expected_metric_counts = SmoketestMetricContract.expected_metric_counts
 expected_unique_metric_counts = SmoketestMetricContract.expected_unique_metric_counts
 expected_units = SmoketestMetricContract.expected_units
 expected_dimensions = SmoketestMetricContract.expected_dimensions
-expected_value_kinds = SmoketestMetricContract.expected_value_kinds
+allowed_value_kinds = SmoketestMetricContract.allowed_value_kinds
 expected_sample_totals = SmoketestMetricContract.expected_sample_totals
 
 verifier = VerifySupport.new(metrics_file: File.join(__dir__, "tmp", "captured_metrics.csv"))
@@ -35,7 +35,7 @@ dimension_failures = []
 verifier.print_metric_dimensions(expected_dimensions) { |failure| dimension_failures << failure }
 
 kind_failures = []
-verifier.print_metric_value_kinds(expected_value_kinds) { |failure| kind_failures << failure }
+verifier.print_metric_value_kinds(allowed_value_kinds) { |failure| kind_failures << failure }
 
 sample_total_failures = []
 verifier.print_metric_sample_totals(expected_sample_totals) { |failure| sample_total_failures << failure }

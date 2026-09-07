@@ -63,7 +63,58 @@ class VerifySupportTest < SpeedshopCloudwatchTest
     end
   end
 
+  def test_value_kind_contract_accepts_singletons_and_distributions
+    with_metrics_file do |metrics_file|
+      verifier = VerifySupport.new(metrics_file: metrics_file)
+      failures = []
+      allowed = {"RackQueue" => {"duration" => %w[value values_counts]},
+                 "Sidekiq" => {"job_runtime" => %w[value values_counts]}}
+      capture_io { verifier.print_metric_value_kinds(allowed) { |failure| failures << failure } }
+      assert_empty failures
+    end
+  end
+
+  def test_value_kind_contract_accepts_mixed_singletons_and_distributions
+    with_metrics_file do |metrics_file|
+      CSV.open(metrics_file, "a") do |csv|
+        csv << [Time.now.to_s, "Namespace=Sidekiq&MetricData.member.1.MetricName=job_runtime&MetricData.member.1.Value=0.2", "{}"]
+      end
+      verifier = VerifySupport.new(metrics_file: metrics_file)
+      failures = value_kind_failures(verifier, "Sidekiq" => {"job_runtime" => %w[value values_counts]})
+      assert_empty failures
+      assert_equal 3, verifier.metric_sample_total(namespace: "Sidekiq", metric_name: "job_runtime")
+      assert_in_delta 0.45, verifier.metric_value_sum(namespace: "Sidekiq", metric_name: "job_runtime"), 0.001
+    end
+  end
+
+  def test_value_kind_contract_rejects_statistic_sets
+    with_metrics_file do |metrics_file|
+      CSV.open(metrics_file, "a") do |csv|
+        csv << [Time.now.to_s, "Namespace=Sidekiq&MetricData.member.1.MetricName=job_runtime&MetricData.member.1.StatisticValues.SampleCount=2", "{}"]
+      end
+      verifier = VerifySupport.new(metrics_file: metrics_file)
+      failures = value_kind_failures(verifier, "Sidekiq" => {"job_runtime" => %w[value values_counts]})
+      assert_equal 1, failures.size
+    end
+  end
+
+  def test_value_kind_contract_rejects_unexpected_or_missing_kinds
+    with_metrics_file do |metrics_file|
+      verifier = VerifySupport.new(metrics_file: metrics_file)
+      failures = []
+      allowed = {"Sidekiq" => {"job_runtime" => ["value"], "missing" => %w[value values_counts]}}
+      capture_io { verifier.print_metric_value_kinds(allowed) { |failure| failures << failure } }
+      assert_equal 2, failures.size
+    end
+  end
+
   private
+
+  def value_kind_failures(verifier, allowed)
+    failures = []
+    capture_io { verifier.print_metric_value_kinds(allowed) { |failure| failures << failure } }
+    failures
+  end
 
   def with_metrics_file
     Dir.mktmpdir do |dir|

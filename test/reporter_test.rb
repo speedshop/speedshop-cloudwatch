@@ -3,6 +3,10 @@
 require "test_helper"
 
 class ReporterTest < SpeedshopCloudwatchTest
+  def run
+    Time.stub(:now, Time.utc(2026, 8, 10, 12, 0, 1)) { super }
+  end
+
   def setup
     super
     @config = Speedshop::Cloudwatch.config
@@ -263,6 +267,20 @@ class ReporterTest < SpeedshopCloudwatchTest
     assert_equal 2, metrics.size
     assert_equal [150, 1], metrics.map { |metric| metric[:values].size }
     assert_equal 151, metrics.sum { |metric| metric[:counts].sum }
+  end
+
+  def test_split_distributions_preserve_frequencies_and_summary_statistics
+    timestamp = Time.utc(2026, 8, 10, 12, 0, 1)
+    observations = (0...301).to_a + [0, 150, 300, 300]
+    observations.each { |value| enqueue_at(value: value, timestamp: timestamp) }
+    @reporter.flush_now!
+
+    metrics = @test_client.find_metrics(metric_name: :EnqueuedJobs)
+    frequencies = metrics.flat_map { |metric| metric[:values].zip(metric[:counts]) }.to_h
+    assert_equal observations.map(&:to_f).tally, frequencies
+    assert_equal [150, 150, 1], metrics.map { |metric| metric[:values].size }
+    assert_equal observations.sum, frequencies.sum { |value, count| value * count }
+    assert_equal observations.minmax, frequencies.keys.minmax
   end
 
   def test_groups_observations_by_reporting_period

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "singleton"
+require_relative "request_size"
 
 module Speedshop
   module Cloudwatch
@@ -211,9 +212,24 @@ module Speedshop
       end
 
       def send_batches(namespace, metric_data)
-        metric_data.each_slice(20) do |batch|
-          config.client.put_metric_data(namespace: namespace, metric_data: batch)
+        overhead = RequestSize.request_overhead(namespace)
+        batch = []
+        size = overhead
+        metric_data.each do |datum|
+          datum_size = RequestSize.bound(datum)
+          if overhead + datum_size > RequestSize::LIMIT
+            Speedshop::Cloudwatch.log_error("Dropping oversized CloudWatch datum: #{datum[:metric_name]} (request size bound exceeds 1 MiB)")
+            next
+          end
+          if batch.size == 20 || size + datum_size > RequestSize::LIMIT
+            config.client.put_metric_data(namespace: namespace, metric_data: batch)
+            batch = []
+            size = overhead
+          end
+          batch << datum
+          size += datum_size
         end
+        config.client.put_metric_data(namespace: namespace, metric_data: batch) unless batch.empty?
       end
 
       def aggregate_namespace_metrics(ns_metrics)

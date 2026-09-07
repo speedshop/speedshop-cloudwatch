@@ -5,6 +5,10 @@ require "speedshop/cloudwatch/yabeda"
 require "yabeda"
 
 class YabedaTest < SpeedshopCloudwatchTest
+  def run
+    Time.stub(:now, Time.utc(2026, 8, 10, 12, 0, 1)) { super }
+  end
+
   def setup
     super
     with_yabeda_warnings_silenced do

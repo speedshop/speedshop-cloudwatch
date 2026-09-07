@@ -219,21 +219,21 @@ class VerifySupport
     end
   end
 
-  def print_metric_value_kinds(expected_kinds)
+  def print_metric_value_kinds(allowed_kinds)
     puts "Checking metric datum kinds:"
     puts
 
-    expected_kinds.each do |namespace, metrics|
+    allowed_kinds.each do |namespace, metrics|
       puts "#{namespace}:"
 
-      metrics.each do |metric, expected_kind|
+      metrics.each do |metric, allowed_kind|
         actual_kinds = metric_value_kinds(namespace: namespace, metric_name: metric)
-        expected = Array(expected_kind).map(&:to_s).sort
-        if actual_kinds == expected
+        allowed = Array(allowed_kind).map(&:to_s).sort
+        if !actual_kinds.empty? && (actual_kinds - allowed).empty?
           puts "  ✓ #{metric}: #{format_values(actual_kinds)}"
         else
-          puts "  ❌ #{metric}: #{format_values(actual_kinds)} (expected #{format_values(expected)})"
-          yield "#{namespace}/#{metric}: got #{format_values(actual_kinds)}, expected #{format_values(expected)}" if block_given?
+          puts "  ❌ #{metric}: #{format_values(actual_kinds)} (allowed #{format_values(allowed)})"
+          yield "#{namespace}/#{metric}: got #{format_values(actual_kinds)}, allowed #{format_values(allowed)}" if block_given?
         end
       end
 
