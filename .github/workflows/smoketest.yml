@@ -17,6 +17,7 @@ jobs:
           - name: Full Integration Test
             script: ./run_smoketest.sh
             solid_queue_supervisor_mode: fork
+            solid_queue_in_puma: false
           - name: Yabeda Parity Integration Test
             script: ./run_yabeda_parity_smoketest.sh
           - name: Yabeda Stock Plugin Integration Test
@@ -24,6 +25,15 @@ jobs:
           - name: Solid Queue Standalone Async Integration Test
             script: ./run_smoketest.sh
             solid_queue_supervisor_mode: async
+            solid_queue_in_puma: false
+          - name: Solid Queue Puma Plugin Fork Integration Test
+            script: ./run_smoketest.sh
+            solid_queue_supervisor_mode: fork
+            solid_queue_in_puma: true
+          - name: Solid Queue Puma Plugin Async Integration Test
+            script: ./run_smoketest.sh
+            solid_queue_supervisor_mode: async
+            solid_queue_in_puma: true
 
     services:
       redis:
@@ -51,6 +61,7 @@ jobs:
       - name: Run smoketest
         env:
           SOLID_QUEUE_SUPERVISOR_MODE: ${{ matrix.solid_queue_supervisor_mode }}
+          SOLID_QUEUE_IN_PUMA: ${{ matrix.solid_queue_in_puma }}
         run: |
           cd smoketest
           ${{ matrix.script }}

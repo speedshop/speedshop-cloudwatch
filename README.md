@@ -218,6 +218,8 @@ Utilization metrics include Tag and/or Hostname dimensions.
 
 This integration registers Solid Queue lifecycle hooks automatically. Each supervisor reports process metrics for only its own workers, like Puma reports per server. Every supervisor also reports the queue metrics, so they're duplicated; aggregate them with Average or Maximum. Solid Queue 1.6 or newer is required.
 
+The integration also works with Solid Queue's Puma plugin in either fork or async mode.
+
 By default, only `QueueLatency` is reported. To enable additional metrics, configure them explicitly:
 
 ```ruby

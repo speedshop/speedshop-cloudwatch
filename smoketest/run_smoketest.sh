@@ -92,15 +92,24 @@ echo "✓ Sidekiq started"
 echo ""
 
 echo "Step 4b: Starting Solid Queue..."
-SMOKETEST_PROCESS=solid_queue bundle exec rake solid_queue:start > log/solid_queue.log 2>&1 &
-SOLID_QUEUE_PID=$!
-sleep 5
-if ! ps -p $SOLID_QUEUE_PID > /dev/null; then
-  echo "❌ Failed to start Solid Queue"
-  cat log/solid_queue.log
-  exit 1
+if [ "${SOLID_QUEUE_IN_PUMA:-}" = true ]; then
+  if ! grep -q "Started Supervisor" log/puma.log; then
+    echo "❌ Solid Queue did not start from the Puma plugin"
+    cat log/puma.log
+    exit 1
+  fi
+  echo "✓ Solid Queue started by the Puma plugin"
+else
+  SMOKETEST_PROCESS=solid_queue bundle exec rake solid_queue:start > log/solid_queue.log 2>&1 &
+  SOLID_QUEUE_PID=$!
+  sleep 5
+  if ! ps -p $SOLID_QUEUE_PID > /dev/null; then
+    echo "❌ Failed to start Solid Queue"
+    cat log/solid_queue.log
+    exit 1
+  fi
+  echo "✓ Solid Queue started"
 fi
-echo "✓ Solid Queue started"
 echo ""
 
 echo "Step 5: Generating test traffic..."

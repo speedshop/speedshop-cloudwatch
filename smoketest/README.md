@@ -8,4 +8,4 @@ This directory contains several Rails 8 integration smoke tests that capture Clo
 
 All scripts start Redis, Puma (2 workers), Sidekiq, and Solid Queue, generate traffic, wait for async flushes, and then verify the captured metrics. Requires Ruby 3.4.7 and Redis.
 
-Set `SOLID_QUEUE_SUPERVISOR_MODE` to `fork` (default) or `async` to choose how the Solid Queue supervisor starts.
+Set `SOLID_QUEUE_SUPERVISOR_MODE` to `fork` (default) or `async` to choose how the Solid Queue supervisor starts. Set `SOLID_QUEUE_IN_PUMA=true` to start it with the Puma plugin.

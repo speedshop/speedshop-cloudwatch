@@ -27,6 +27,18 @@ module TestDoubles
     end
   end
 
+  class CollectorDouble
+    attr_reader :collects
+
+    def initialize
+      @collects = 0
+    end
+
+    def collect
+      @collects += 1
+    end
+  end
+
   class RailsDouble
     attr_reader :application
 

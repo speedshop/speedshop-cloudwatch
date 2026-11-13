@@ -81,6 +81,22 @@ class ReporterTest < SpeedshopCloudwatchTest
     assert_equal 1, Thread.list.count { |t| t.name == "scw_reporter" }
   end
 
+  def test_initializes_late_collectors_once
+    require "speedshop/cloudwatch/puma"
+    @config.interval = 60
+    @reporter.start!
+
+    collector = TestDoubles::CollectorDouble.new
+    @config.collectors << :puma
+    Speedshop::Cloudwatch::Puma.stub(:new, collector) do
+      @reporter.start!
+      @reporter.start!
+      @reporter.flush_now!
+    end
+
+    assert_equal 1, collector.collects
+  end
+
   def test_started_detects_dead_thread
     @reporter.start!
     sleep(0.01)
