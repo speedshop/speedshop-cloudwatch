@@ -20,6 +20,14 @@ module SmoketestMetricContract
         Utilization
         QueueLatency
         QueueSize
+      ],
+      "SolidQueue" => %w[
+        Processes
+        Workers
+        Capacity
+        Utilization
+        QueueLatency
+        QueueSize
       ]
     }
   end
@@ -33,7 +41,8 @@ module SmoketestMetricContract
       "Puma" => 7,
       "Rack" => 1,
       "ActiveJob" => 1,
-      "Sidekiq" => 13
+      "Sidekiq" => 13,
+      "SolidQueue" => 6
     }
   end
 
@@ -50,6 +59,10 @@ module SmoketestMetricContract
       "ActiveJob" => {"QueueLatency" => 1},
       "Sidekiq" => {
         "EnqueuedJobs" => 1,
+        "QueueLatency" => 1,
+        "QueueSize" => 1
+      },
+      "SolidQueue" => {
         "QueueLatency" => 1,
         "QueueSize" => 1
       }
@@ -83,6 +96,14 @@ module SmoketestMetricContract
         "Workers" => ["Count"],
         "Processes" => ["Count"],
         "DefaultQueueLatency" => ["Seconds"],
+        "Capacity" => ["Count"],
+        "Utilization" => ["Percent"],
+        "QueueLatency" => ["Seconds"],
+        "QueueSize" => ["Count"]
+      },
+      "SolidQueue" => {
+        "Processes" => ["Count"],
+        "Workers" => ["Count"],
         "Capacity" => ["Count"],
         "Utilization" => ["Percent"],
         "QueueLatency" => ["Seconds"],
@@ -122,6 +143,14 @@ module SmoketestMetricContract
         "Utilization" => [],
         "QueueLatency" => %w[QueueName],
         "QueueSize" => %w[QueueName]
+      },
+      "SolidQueue" => {
+        "Processes" => [],
+        "Workers" => [],
+        "Capacity" => [],
+        "Utilization" => [],
+        "QueueLatency" => %w[QueueName],
+        "QueueSize" => %w[QueueName]
       }
     }
   end
@@ -154,6 +183,14 @@ module SmoketestMetricContract
         "Workers" => ["value"],
         "Processes" => ["value"],
         "DefaultQueueLatency" => ["value"],
+        "Capacity" => ["value"],
+        "Utilization" => ["value"],
+        "QueueLatency" => ["value"],
+        "QueueSize" => ["value"]
+      },
+      "SolidQueue" => {
+        "Processes" => ["value"],
+        "Workers" => ["value"],
         "Capacity" => ["value"],
         "Utilization" => ["value"],
         "QueueLatency" => ["value"],

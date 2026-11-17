@@ -23,6 +23,11 @@ else
   end
 end
 
+if ENV["SOLID_QUEUE_IN_PUMA"] == "true"
+  plugin :solid_queue
+  solid_queue_mode ENV.fetch("SOLID_QUEUE_SUPERVISOR_MODE", :fork)
+end
+
 on_booted do
   Speedshop::Cloudwatch.start!
 end

@@ -10,4 +10,5 @@ Rails.application.configure do
   config.active_support.disallowed_deprecation = :raise
   config.active_support.disallowed_deprecation_warnings = []
   config.log_level = :debug
+  config.solid_queue.connects_to = {database: {writing: :queue}}
 end

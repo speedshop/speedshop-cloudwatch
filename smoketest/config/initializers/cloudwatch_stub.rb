@@ -44,11 +44,16 @@ Speedshop::Cloudwatch.configure do |config|
       :DeadJobs, :Workers, :Processes, :DefaultQueueLatency, :Capacity,
       :Utilization, :QueueLatency, :QueueSize
     ]
+    config.metrics[:solid_queue] = [
+      :Processes, :Workers, :Capacity, :Utilization,
+      :QueueLatency, :QueueSize
+    ]
     config.metrics[:rack] = [:RequestQueueTime]
     config.metrics[:active_job] = [:QueueLatency]
   else
     config.metrics[:puma] = []
     config.metrics[:sidekiq] = []
+    config.metrics[:solid_queue] = []
     config.metrics[:rack] = []
     config.metrics[:active_job] = []
   end

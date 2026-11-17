@@ -13,6 +13,7 @@ export AWS_ACCESS_KEY_ID=fake-key
 export AWS_SECRET_ACCESS_KEY=fake-secret
 
 export SMOKETEST_MODE="${SMOKETEST_MODE:-builtin}"
+export SOLID_QUEUE_SUPERVISOR_MODE="${SOLID_QUEUE_SUPERVISOR_MODE:-fork}"
 export SMOKETEST_TITLE="${SMOKETEST_TITLE:-Speedshop Cloudwatch Smoketest}"
 export VERIFY_SCRIPT="${VERIFY_SCRIPT:-verify_metrics.rb}"
 
@@ -21,6 +22,9 @@ cleanup() {
   echo "Cleaning up processes..."
   if [ ! -z "$SIDEKIQ_PID" ] && ps -p $SIDEKIQ_PID > /dev/null 2>&1; then
     kill $SIDEKIQ_PID 2>/dev/null && echo "✓ Sidekiq stopped"
+  fi
+  if [ ! -z "$SOLID_QUEUE_PID" ] && ps -p $SOLID_QUEUE_PID > /dev/null 2>&1; then
+    kill $SOLID_QUEUE_PID 2>/dev/null && echo "✓ Solid Queue stopped"
   fi
   if [ ! -z "$PUMA_PID" ] && ps -p $PUMA_PID > /dev/null 2>&1; then
     kill $PUMA_PID 2>/dev/null && echo "✓ Rails server stopped"
@@ -56,6 +60,8 @@ echo ""
 echo "Step 2: Installing dependencies..."
 bundle install --quiet
 echo "✓ Dependencies installed"
+bundle exec rake db:prepare > /dev/null
+echo "✓ Database prepared"
 echo ""
 
 echo "Step 3: Starting Rails server (Puma)..."
@@ -83,6 +89,27 @@ if ! ps -p $SIDEKIQ_PID > /dev/null; then
     exit 1
 fi
 echo "✓ Sidekiq started"
+echo ""
+
+echo "Step 4b: Starting Solid Queue..."
+if [ "${SOLID_QUEUE_IN_PUMA:-}" = true ]; then
+  if ! grep -q "Started Supervisor" log/puma.log; then
+    echo "❌ Solid Queue did not start from the Puma plugin"
+    cat log/puma.log
+    exit 1
+  fi
+  echo "✓ Solid Queue started by the Puma plugin"
+else
+  SMOKETEST_PROCESS=solid_queue bundle exec rake solid_queue:start > log/solid_queue.log 2>&1 &
+  SOLID_QUEUE_PID=$!
+  sleep 5
+  if ! ps -p $SOLID_QUEUE_PID > /dev/null; then
+    echo "❌ Failed to start Solid Queue"
+    cat log/solid_queue.log
+    exit 1
+  fi
+  echo "✓ Solid Queue started"
+fi
 echo ""
 
 echo "Step 5: Generating test traffic..."

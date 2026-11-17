@@ -9,7 +9,7 @@ module Speedshop
       include Singleton
 
       attr_accessor :interval, :metrics, :namespaces, :logger, :queue_max_size, :sidekiq_queues, :dimensions,
-        :collectors, :enabled_environments, :environment
+        :solid_queue_queues, :collectors, :enabled_environments, :environment
       attr_writer :client
 
       def initialize
@@ -27,11 +27,13 @@ module Speedshop
         @metrics = {
           puma: [],
           sidekiq: [:QueueLatency],
+          solid_queue: [:QueueLatency],
           rack: [:RequestQueueTime],
           active_job: [:QueueLatency]
         }
-        @namespaces = {puma: "Puma", sidekiq: "Sidekiq", rack: "Rack", active_job: "ActiveJob"}
+        @namespaces = {puma: "Puma", sidekiq: "Sidekiq", solid_queue: "SolidQueue", rack: "Rack", active_job: "ActiveJob"}
         @sidekiq_queues = nil
+        @solid_queue_queues = nil
         @dimensions = {}
         @logger = (defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger) ? Rails.logger : Logger.new($stdout)
         @collectors = [] # [:puma, :sidekiq]

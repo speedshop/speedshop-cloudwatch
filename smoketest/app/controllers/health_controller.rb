@@ -6,6 +6,7 @@ class HealthController < ApplicationController
   def enqueue_jobs
     TestSidekiqJob.perform_async("test-data-#{Time.now.to_i}")
     TestActiveJob.perform_later("test-data-#{Time.now.to_i}")
+    TestSolidQueueJob.perform_later("test-data-#{Time.now.to_i}")
     render json: {status: "enqueued", time: Time.now.to_i}
   end
 end
